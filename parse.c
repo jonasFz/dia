@@ -1,20 +1,27 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "parse.h"
 
-const char TYPE_UNDEFINED[] = "undefined";
-const char TYPE_FUNCTION[] = "function";
-const char TYPE_BLOCK[] = "block";
-const char TYPE_STATEMENT[] = "statement";
-const char TYPE_IDENT[] = "ident";
-const char TYPE_ASSIGNMENT[] = "assignment";
-const char TYPE_INTEGER[] = "integer";
-const char TYPE_EXPRESSION[] = "expression";
-const char TYPE_OPERATOR[] = "operator";
-const char TYPE_DECL[] = "decl";
+const char *TYPES[] = {
+	"undefined",
+	"function",
+	"block",
+	"statement",
+	"ident",
+	"assignment",
+	"integer",
+	"expression",
+	"operator",
+	"decl",
+	"global"
+};
 
-
+/*This is a dangerous function*/
+const char *decode_type(unsigned int type){
+	return TYPES[type];
+}
 
 void create_node_list(node_list *nl){
 	nl->len = 0;
@@ -35,16 +42,22 @@ void append_node(node *p, node *n){
 	p->nodes = nl;
 }
 
-node* create_node(int index, int length){
+node* create_node(parser *p, int index, int length){
 	node *n = (node *)malloc(sizeof(node));
 	n->index = index;
 	n->length = length;
+
+	n->value = (char *) malloc(sizeof(char) * (length+1));
+	memcpy((void *)n->value, (void *)p->src+index, sizeof(char) * length);
+	n->value[length] = '\0';
 
 	n->precedence = 0;
 	//Setting precedence to its highest possible value. Signifies precedence is not relevent for this node.
 	n->precedence -= 1;
 
 	n->type = TYPE_UNDEFINED;
+
+	n->scope = NULL;
 
 	create_node_list(&n->nodes);
 
@@ -70,9 +83,9 @@ void fail_hard(){
 
 
 
-node* claim_type(parser *p, const char *type){
+node* claim_type(parser *p, unsigned int type){
 
-	node *n = create_node(p->cur, p->off);
+	node *n = create_node(p, p->cur, p->off);
 	n->type = type;
 
 	p->cur +=  p->off;
@@ -93,10 +106,10 @@ void print_indent(int indent){
 
 void __print_node(parser *p, node *n, int indent){
 	print_indent(indent);
-	printf("%s:", n->type);
-	for(int i = 0; i < n->length; i++){
+	printf("%s:%s", decode_type(n->type), n->value);
+	/*for(int i = 0; i < n->length; i++){
 		printf("%c", p->src[n->index+i]);
-	}
+	}*/
 	if (n->nodes.len>0){
 		printf("[\n");
 		for (int i = 0; i < n->nodes.len; i++){
@@ -141,6 +154,11 @@ void ignore_current(parser *p){
 
 //These accept funtions are assuming that the initial offset equals zero
 int accept_ident(parser *p){
+	//ident cannot start with a number
+	if (!ALPHA(CUR(p))){
+		return p->off;
+	}
+
 	while((CUR(p) >= 'a' && CUR(p) <='z') || (CUR(p) >= 'A' && CUR(p) <= 'Z') || CUR(p) == '_' || (CUR(p)>='0' && CUR(p) <= '9')){
 		p->off++;
 	}
@@ -211,8 +229,15 @@ node* parse_decl(parser *p){
 
 	node* ret = claim_type(p, TYPE_DECL);
 
-	append_node(ret, parse_ident(p));
-	append_node(ret, parse_ident(p));
+	node *ident = parse_ident(p);
+	node *type = parse_ident(p);
+
+	if(type == NULL){
+		printf("No type given when declaring '%s'\n'", ident->value);
+		exit(1);
+	}
+	append_node(ret, ident);
+	append_node(ret, type);
 	
 	return ret;
 }
@@ -347,5 +372,14 @@ node* parse_function(parser *p){
 
 	return n;
 }
+node *parse_global(parser *p){
+	node *global = claim_type(p, TYPE_GLOBAL);
 
+	eat_spaces(p);
+	while(!DONE(p)){
+		append_node(global, parse_function(p));
+		eat_spaces(p);
+	}
+	return global;
+}
 

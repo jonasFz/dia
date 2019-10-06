@@ -1,3 +1,11 @@
 function add_numbers:
-	var test u32  = 1   ;
+	var test u32  = 1;
+	test = test + test;
+
+
+	var apples u32;
+end
+
+function some_other_function:
+	var test test = test;
 end
