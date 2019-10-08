@@ -1,9 +1,11 @@
 #ifndef _H_SCOPE
 #define _H_SCOPE
 
+#include "type.h"
 
 typedef struct variable {
 	char name[64];
+	type *type;
 } variable;
 
 typedef struct scope scope;
@@ -27,7 +29,7 @@ variable* current(scope_iter si);
 
 scope* create_scope(scope *parent);
 
-void add_variable(scope *s, const char *var_name);
+void add_variable(scope *s, const char *var_name, type *t);
 variable* find_variable(scope *s, const char *var_name);
 
 #endif

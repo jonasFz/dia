@@ -3,34 +3,41 @@
 #include <string.h>
 
 #include "parse.h"
+#include "type.h"
 
-void verify(scope *scope, node *n){
+void verify(type_table * tt, scope *scope, node *n){
 	if(n->type == TYPE_GLOBAL){
 		n->scope = scope;
 		for(int i = 0;i<n->nodes.len;i++){
-			verify(scope, &n->nodes.nodes[i]);
+			verify(tt, scope, &n->nodes.nodes[i]);
 		}
 	}else if(n->type == TYPE_FUNCTION){
 		//Not sure if this is the scope that makes most sense, doesn't really need anyscope
 		n->scope = scope;
 		node *block = &n->nodes.nodes[1];
-		verify(n->scope, block);
+		verify(tt, n->scope, block);
 
 	}else if(n->type == TYPE_BLOCK){
 		n->scope = create_scope(scope);
 		for (int i = 0; i < n->nodes.len; i++){
-			verify(n->scope, &n->nodes.nodes[i]);
+			verify(tt, n->scope, &n->nodes.nodes[i]);
 		}
 	}else if(n->type == TYPE_OPERATOR){
 		n->scope = scope;
-		verify(n->scope, &L(n));
-		verify(n->scope, &R(n));
+		verify(tt, n->scope, &L(n));
+		verify(tt, n->scope, &R(n));
 	}else if(n->type == TYPE_DECL){
 		if (find_variable(scope, L(n).value)){
 			printf("Variable '%s' has already been declared\n", L(n).value);
 			exit(1);
 		}
-		add_variable(scope, L(n).value);
+		type *t = find_type(tt, R(n).value);
+		if(t == NULL){
+			printf("Type '%s' has not been defined\n", R(n).value);
+			exit(1);
+		}
+		add_variable(scope, L(n).value, t);
+
 	}else if(n->type == TYPE_IDENT){
 		if(!find_variable(scope, n->value)){
 			printf("Variable '%s' has not been declared\n", n->value); 
@@ -65,13 +72,16 @@ char *load_file(char *file_path){
 
 int main(){
 
+	type_table* tt = make_type_table();
+	add_built_in_types(tt);
+
 	parser p = make_parser("test.dia");
 
 	node *global = parse_global(&p);
 	print_node(&p, global);
 
 	scope *global_scope = create_scope(NULL);
-	verify(global_scope, global);
+	verify(tt, global_scope, global);
 
 	free(p.src);
 

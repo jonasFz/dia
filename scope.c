@@ -59,7 +59,7 @@ variable* find_variable(scope *s, const char *var_name){
 	return NULL;
 }	
 
-void add_variable(scope *s, const char *var_name){
+void add_variable(scope *s, const char *var_name, type *t){
 	if(s->variable_count == s->variable_cap){
 		grow_variable_table(s);
 	}

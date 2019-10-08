@@ -29,22 +29,24 @@ typedef union reg {
 typedef u32 op;
 const op ADD = 0;
 
-typedef struct bc {
+typedef struct bytecode {
 	op op;
 	reg r0;
 	reg r1;
 	reg r2;
 	reg r3;
-} bc;
+} bytecode;
 
-bc make_bc(op op, s32 r0, s32 r1, s32 r2, s32 r3){
-	bc bc;
-	bc.r0.s32 = r0;
-	bc.r1.s32 = r1;
-	bc.r2.s32 = r2;
-	bc.r3.s32 = r3;
+typedef struct bc_code{
+	bytecode *code;
+	unsigned int capacity;
+	unsigned int length;
+} bc_code;
 
-	return bc;
-}
+bc_code make_bc_code();
+bc_code join(bc_code *a, bc_code *b);
+
+bytecode make_bytecode(op op, s32 r0, s32 r1, s32 r2, s32 r3);
+void add_bytecode(bc_code *bcode, bytecode bc);
 
 #endif
