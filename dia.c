@@ -46,6 +46,7 @@ void verify(type_table * tt, scope *scope, node *n){
 	}
 }
 
+
 char *load_file(char *file_path){
 	FILE *f = fopen(file_path, "r");
 
@@ -82,6 +83,8 @@ int main(){
 
 	scope *global_scope = create_scope(NULL);
 	verify(tt, global_scope, global);
+
+	print_type_table(tt);
 
 	free(p.src);
 

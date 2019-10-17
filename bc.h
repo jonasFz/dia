@@ -27,7 +27,7 @@ typedef union reg {
 } reg;
 
 typedef u32 op;
-const op ADD = 0;
+const op ADD32 = 0;
 
 typedef struct bytecode {
 	op op;

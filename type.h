@@ -17,5 +17,6 @@ type* find_type(type_table *tt, const char *name);
 void register_type(type_table *tt, const char* name, unsigned int length);
 
 void add_built_in_types(type_table *tt);
+void print_type_table(type_table *tt);
 
 #endif

@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -46,4 +47,9 @@ void add_built_in_types(type_table *tt){
 	register_type(tt, "s64", 8);
 	register_type(tt, "f32", 4);
 	register_type(tt, "f64", 8);
+}
+void print_type_table(type_table *tt){
+	for (int i = 0;i < tt->count; i++){
+		printf("%d %s\n", tt->types[i].length,  tt->types[i].name);
+	}
 }
