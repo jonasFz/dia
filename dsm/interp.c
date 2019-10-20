@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #define INST_HALT	0
 #define INST_GOTO_I	1
@@ -79,7 +80,36 @@ typedef struct Interp{
 	unsigned int stack_length;
 } Interp;
 
-void interpret(Interp *interp, Inst *code, unsigned int length, unsigned int start){
+typedef struct Code{
+	Inst *code;
+	unsigned int length;
+
+	unsigned int cap;
+} Code;
+
+Code make_code(){
+	Code c;
+	c.code = (Inst *)malloc(sizeof(Inst)*128);
+	c.length = 0;
+	c.cap = 128;
+
+	return c;
+}
+
+void add_inst(Code *code, Inst inst){
+	if(code->length == code->cap){
+		code->code = (Inst *)realloc(code->code, sizeof(Inst) * code->cap*2);
+		code->cap *= 2;
+	}
+	code->code[code->length++] = inst;
+}
+
+
+void interpret(Interp *interp, Code *proc, unsigned int start){
+	
+	Inst *code = proc->code;
+	unsigned int length = proc->length;
+
 	interp->reg[SP] = 0;
 	interp->reg[FP] = 0;
 	interp->reg[RET] = 0;
@@ -97,8 +127,8 @@ void interpret(Interp *interp, Inst *code, unsigned int length, unsigned int sta
 
 		Inst i = code[interp->reg[IS]++];
 		
-		//printf("SP=%d, FP=%d, RET=%d, IS=%d     ", interp->reg[SP], interp->reg[FP], interp->reg[RET], interp->reg[IS]);
-		printf("%s %d %d %d\n", OP[i.inst], i.a, i.b, i.c);
+		printf("SP=%d, FP=%d, RET=%d, IS=%d\n", interp->reg[SP], interp->reg[FP], interp->reg[RET], interp->reg[IS]);
+		//printf("%s %d %d %d\n", OP[i.inst], i.a, i.b, i.c);
 	
 		switch(i.inst){
 			case INST_HALT:
@@ -175,80 +205,79 @@ int get_op(char* line){
 			}
 			j++;
 		}
-		if(check[j] == '\0') return i;
+		if(check[j] == '\0' && line[j] == '\0') return i;
 	}
 	return -1;
 }
 
 
-void load_dsm(const char *file_path, Inst *code, int *length){
+void load_dsm(const char *file_path, Code *code){
 	FILE* input = fopen(file_path, "r");
-	
+
 	char line[256];
 	int line_length = 0;
 
-	int line_count = 0;;
+	int line_count = 0;
 
-	int c = fgetc(input);
-	while(c!=EOF){
-		if(c == '\n'){
-			line[line_length = '\0'];
-
-			char op[64];
-			char a[16];
-			char b[16];
-			char c[16];
-
-			sscanf(line, "%s %s %s %s", op, a, b, c);
-			//printf("%s %s %s %s\n", op, a, b, c);			
-
-			int oper = get_op(op);
-			if(oper != -1){
-				printf("%s\n", OP[oper]);
-			}else{
-				printf("erm\n");
-			}
-
-			line_length = 0;
-		}else{
-			line[line_length] = c;
-			line_length++;
+	int cur = fgetc(input);
+	while(cur!=EOF){
+		if(cur != '\n'){
+			line[line_length++] = cur;
+			cur = fgetc(input);
+			continue;
 		}
+		
+		line[line_length] = '\0';
+
+		if(line[0] == '\0'){
+			line_length = 0;
+			cur = fgetc(input);
+			continue;
+		}
+
+		char op[64];
+		char a[16] = "-1";
+		char b[16] = "-1";
+		char c[16] = "-1";
+
+		sscanf(line, "%s %s %s %s", op, a, b, c);
+		//printf("%s %s %s %s\n", op, a, b, c);			
+
+		int oper = get_op(op);
+
+		int av = atoi(a);
+		int bv = atoi(b);
+		int cv = atoi(c);
+
+		if(oper != -1){
+			add_inst(code, make_inst(oper, av, bv, cv));
+			printf("%s %d %d %d\n", OP[oper], av, bv, cv);
+		}else{
+			printf("%s\n", line);
+		}
+
+		line_length = 0;
 		line_count++;
-		c = fgetc(input);
+
+		cur = fgetc(input);
 	}
 	fclose(input);
 }
 
 
 int main(){
-	Inst code[15];
-	
-	//main:
-	code[0] = make_inst(INST_PUSH_R, 9, -1, -1);	//Save the frame pointer on the stack
-	code[1] = make_inst(INST_MOV_R, 9, 8, -1);	//Move the stack pointer into the frame pointer
-	code[2] = make_inst(INST_PUSH_I, 60, -1, -1);	//Push 60 onto the stack
-	code[3] = make_inst(INST_PUSH_I, 9, -1, -1);	//Push 9 onto the stack
-	code[4] = make_inst(INST_CALL_I, 7, -1, -1);	//Call the add function 
-	code[5] = make_inst(INST_POP_R, 0, -1, -1);	//Pop result of function into register 0
-	code[6] = make_inst(INST_HALT, -1, -1, -1);	//Stop the program
 
-	//add:
-	code[7] = make_inst(INST_LOAD_RI, 0, 9, 1);	//Pop 9 into register 0
-	code[8] = make_inst(INST_LOAD_RI, 1, 9, 2);	//Pop 60 into register 1
-	code[9] = make_inst(INST_ADD_R, 0, 0, 1);	//Add register 0 and 1 and store into 0
-	code[10] = make_inst(INST_POP, -1, -1, -1);	//Pop 9 off the stack
-	code[11] = make_inst(INST_POP, -1, -1, -1);	//Pop 60 off the stack
-	code[12] = make_inst(INST_POP_R, 9, -1, -1);	//Pop the original fp back into fp
-	code[13] = make_inst(INST_PUSH_R, 0, -1, -1);	//Push the function result onto stack
-	code[14] = make_inst(INST_RET, -1, -1, -1);	//Return from function
+	Code proc = make_code();
+
+	load_dsm("test.dsm", &proc);
+
+
+	printf("%d\n", proc.length);
 
 	Interp interp;
-	interpret(&interp, code, 15, 0);
+	interpret(&interp, &proc, 0);
 
 	printf("%d\n", interp.reg[R0]);
-
-	load_dsm("test.dsm", NULL, NULL);
 
 	return 0;
 }

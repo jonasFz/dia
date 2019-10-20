@@ -1,19 +1,19 @@
 main:
-PUSH_R 9	//Save the frame pointer on the stack
-MOV_R 9, 8	//Move the stack pointer into the frame pointer
-PUSH_I 60	//Push 60 onto the stack
-PUSH_I 9	//Push 9 onto the stack
-CALL_I 7	//Call the add function 
-POP_R 0		//Pop result of function into register 0
-HALT		//Stop the program
+PUSH_R 9 -1 -1	//Save the frame pointer on the stack
+MOV_R 9 8 -1	//Move the stack pointer into the frame pointer
+PUSH_I 60 -1 -1	//Push 60 onto the stack
+PUSH_I 9 -1 -1 	//Push 9 onto the stack
+CALL_I 7 -1 -1	//Call the add function 
+POP_R 0	-1 -1	//Pop result of function into register 0
+HALT -1 -1 -1	//Stop the program
 
-main:
+add:
 LOAD_RI 0 9 1	//Pop 9 into register 0
 LOAD_RI 1 9 2	//Pop 60 into register 1
 ADD_R 0  0 1	//Add register 0 and 1 and store into 0
-POP		//Pop 9 off the stack
-POP		//Pop 60 off the stack
-POP_R 9		//Pop the original fp back into fp
-PUSH_R 0	//Push the function result onto stack
-RET		//Return from function
+POP -1 -1 -1	//Pop 9 off the stack
+POP -1 -1 -1	//Pop 60 off the stack
+POP_R 9	-1 -1	//Pop the original fp back into fp
+PUSH_R 0 -1 -1	//Push the function result onto stack
+RET -1 -1 -1	//Return from function
 
