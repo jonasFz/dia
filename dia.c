@@ -71,12 +71,17 @@ char *load_file(char *file_path){
 	return data;
 }
 
-int main(){
+int main(int argc, char **argv){
+
+	if(argc != 2){
+		printf("Please specify the file you wish to compile\n");
+		return 0;
+	}
 
 	type_table* tt = make_type_table();
 	add_built_in_types(tt);
 
-	parser p = make_parser("test.dia");
+	parser p = make_parser(argv[1]);
 
 	node *global = parse_global(&p);
 	print_node(&p, global);
@@ -84,7 +89,7 @@ int main(){
 	scope *global_scope = create_scope(NULL);
 	verify(tt, global_scope, global);
 
-	print_type_table(tt);
+	//print_type_table(tt);
 
 	free(p.src);
 

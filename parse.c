@@ -15,7 +15,10 @@ const char *TYPES[] = {
 	"expression",
 	"operator",
 	"decl",
-	"global"
+	"global",
+	"parameters",
+	"call",
+	"call_parameters"
 };
 
 /*This is a dangerous function*/
@@ -241,28 +244,56 @@ node* parse_decl(parser *p){
 	
 	return ret;
 }
-/*
-node* parse_statement(parser *p){
-	eat_spaces(p);
 
-	node *lhs = NULL;
-	if (accept(p, "var")){
-		ignore_current(p);
-		lhs = parse_decl(p);
-			
-	}else{
-		parse_expression()
+
+node* parse_expression(parser *);
+node* parse_call_params(parser *p){
+	eat_spaces(p);
+	if(!accept(p, "(")){
+		return NULL;
+	}
+	ignore_current(p);
+	node* params = claim_type(p, TYPE_CALL_PARAMS);
+	eat_spaces(p);
+	if(accept(p, ")")){
+		return params;
+	}
+	while(1){
+		eat_spaces(p);
+		append_node(params, parse_expression(p));
+		if(accept(p, ")")){
+			ignore_current(p);
+			return params;
+		}else if(accept(p, ",")){
+			ignore_current(p);
+		}else{
+			printf("Failed to parse parameter list, expected ',' or ')'\n");
+			p->state = STATE_ERROR;
+			fail_hard();
+		}
 	}
 	return NULL;
 }
-*/
+
 node* parse_operand(parser *p){
 
 	node *ret = parse_decl(p);
 	if (ret) return ret;
 
 	ret = parse_ident(p);
-	if (ret) return ret;
+	eat_spaces(p);
+
+	//Is this a function call or just a regular identifier
+	if (ret){
+		node *params = parse_call_params(p);
+		if(params){
+			node *fcall = claim_type(p, TYPE_CALL);
+			append_node(fcall, ret);
+			append_node(fcall, params);
+			return fcall;
+		}
+	       	return ret;
+	}
 
 	ret = parse_digit(p);
 	if (ret) return ret;
@@ -288,7 +319,8 @@ node* parse_expression(parser *p){
 	int osp = 0;
 
 	eat_spaces(p);
-	while(!accept(p, ";")){
+	int gogo = 1;
+	while(gogo){
 		node *thing = parse_operator(p);
 		if (thing){
 			if(osp > 0){
@@ -304,11 +336,14 @@ node* parse_expression(parser *p){
 			ostack[osp++] = thing;
 		}else{
 			node *operand = parse_operand(p);
+			if(!operand){
+				gogo = 0;
+				break;
+			}
 			nstack[nsp++] = operand;
 		}
 		eat_spaces(p);
 	}
-	ignore_current(p); //Throwing out the semicolon
 	while(osp !=0){
 		node *top = ostack[--osp];
 		node *r = nstack[--nsp];
@@ -318,7 +353,8 @@ node* parse_expression(parser *p){
 		nstack[nsp++] = top;
 	}
 	if (nsp != 1){
-		printf("Strange number of things left on stack when parsing expression %d\n", nsp);
+		print_node(NULL, nstack[nsp-1]);
+		printf("Strange number of things left on stack while parsing expression %d\n", nsp);
 		fail_hard();
 	}
 	return nstack[0];
@@ -327,10 +363,10 @@ node* parse_expression(parser *p){
 node* parse_block(parser *p){
 	
 	node *block = claim_type(p, TYPE_BLOCK);
-	
+
 	eat_spaces(p);
-	if (!accept(p, ":")){
-		printf("Expecting a ':' at begining of block\n");
+	if (!accept(p, "{")){
+		printf("Expecting a '{' at begining of block\n");
 		p->state = STATE_ERROR;
 		fail_hard();
 	}
@@ -338,14 +374,55 @@ node* parse_block(parser *p){
 	
 	eat_spaces(p);
 
-	while(!accept(p, "end")){
-		append_node(block, parse_expression(p));	
+	while(!accept(p, "}")){
+		append_node(block, parse_expression(p));
+		eat_spaces(p);
+		if(!accept(p, ";")){
+			printf("Expression should end with a ';'\n");
+			p->state = STATE_ERROR;
+			fail_hard();
+		}
+		ignore_current(p);
 		eat_spaces(p);
 	}
 	ignore_current(p);
 	return block;
 
 
+}
+
+
+node* parse_params(parser *p){
+	eat_spaces(p);
+
+	if(!accept(p, "(")){
+		printf("Expexted '('\n");
+		p->state = STATE_ERROR;
+		fail_hard();
+	}
+	ignore_current(p);
+
+	node *n = claim_type(p, TYPE_PARAM_LIST);
+
+	if(!accept(p, ")")){
+		while(1){
+			eat_spaces(p);	
+			append_node(n, parse_decl(p));
+			if(accept(p, ")")){
+				break;
+			}
+			if(accept(p, ",")){
+				ignore_current(p);
+			}else{
+				printf("Expected a ')' or a ','\n");
+				p->state = STATE_ERROR;
+				fail_hard();
+			}
+		}
+
+	}
+	ignore_current(p);
+	return n;
 }
 
 node* parse_function(parser *p){
@@ -367,9 +444,10 @@ node* parse_function(parser *p){
 	node *ident = parse_ident(p);
 
 	append_node(n, ident);
+	append_node(n, parse_params(p));
 	append_node(n, parse_block(p));
 
-
+	
 	return n;
 }
 node *parse_global(parser *p){

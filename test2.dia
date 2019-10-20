@@ -1,20 +1,8 @@
-function add(a: u32, b: u32) -> u32:
+function add(var a u32, var b u32){
 	var c u32 = a + b;
-	return c;
-end
+	var return u32 = c;
+}
 
-function main():
+function main(){
 	add(60, 9);
-end
-
-:add
-push fp
-mov_rr fp sp
-mov_rri r1 fp 0
-mov_rri r2 fp 4
-add_rrr r0 r1 r2
-
-:start
-push_i 9
-push_i 60
-call add
+}
