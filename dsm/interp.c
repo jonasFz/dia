@@ -211,8 +211,11 @@ int get_op(char* line){
 }
 
 
-void load_dsm(const char *file_path, Code *code){
+int load_dsm(const char *file_path, Code *code){
 	FILE* input = fopen(file_path, "r");
+	if(input == NULL){
+		return 0;
+	}
 
 	char line[256];
 	int line_length = 0;
@@ -236,18 +239,14 @@ void load_dsm(const char *file_path, Code *code){
 		}
 
 		char op[64];
-		char a[16] = "-1";
-		char b[16] = "-1";
-		char c[16] = "-1";
+		int av = -1;
+		int bv = -1;
+		int cv = -1;
 
-		sscanf(line, "%s %s %s %s", op, a, b, c);
+		sscanf(line, "%s %d %d %d", op, &av, &bv, &cv);
 		//printf("%s %s %s %s\n", op, a, b, c);			
 
 		int oper = get_op(op);
-
-		int av = atoi(a);
-		int bv = atoi(b);
-		int cv = atoi(c);
 
 		if(oper != -1){
 			add_inst(code, make_inst(oper, av, bv, cv));
@@ -262,14 +261,23 @@ void load_dsm(const char *file_path, Code *code){
 		cur = fgetc(input);
 	}
 	fclose(input);
+	return 1;
 }
 
 
-int main(){
+int main(int argc, char **argv){
+
+	if( argc != 2){
+		printf("Please specify a file to load\n");
+		return 0;
+	}
 
 	Code proc = make_code();
 
-	load_dsm("test.dsm", &proc);
+	if(!load_dsm(argv[1], &proc)){
+		printf("Failed to load file '%s'\n", argv[1]);
+		return 0;
+	}
 
 
 	printf("%d\n", proc.length);
