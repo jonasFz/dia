@@ -425,6 +425,17 @@ node* parse_params(parser *p){
 	return n;
 }
 
+node* parse_return_type(parser *p){
+	eat_spaces(p);
+	if(!accept(p, "->")){
+		printf("Expected a '->' before function body\n");
+		p->state=STATE_ERROR;
+		fail_hard();
+	}
+	ignore_current(p);
+	return parse_ident(p);
+}
+
 node* parse_function(parser *p){
 	eat_spaces(p);
 	
@@ -439,12 +450,13 @@ node* parse_function(parser *p){
 
 	eat_spaces(p);
 
-	accept_ident(p);	
-	
+	accept_ident(p);
+
 	node *ident = parse_ident(p);
 
 	append_node(n, ident);
 	append_node(n, parse_params(p));
+	append_node(n, parse_return_type(p));
 	append_node(n, parse_block(p));
 
 	

@@ -6,6 +6,7 @@
 typedef struct variable {
 	char name[64];
 	type *type;
+	unsigned int offset;
 } variable;
 
 typedef struct scope scope;
@@ -15,6 +16,8 @@ struct scope {
 	variable *variables;
 	int variable_count;
 	int variable_cap;
+
+	unsigned int offset;
 };
 
 typedef struct scope_iter{

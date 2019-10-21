@@ -11,6 +11,8 @@ scope* create_scope(scope *parent){
 	s->variable_cap = 64;
 	s->variables = (variable *)malloc(sizeof(variable)*s->variable_cap);
 
+	s->offset = 0;
+
 	return s;
 }
 
@@ -64,9 +66,14 @@ void add_variable(scope *s, const char *var_name, type *t){
 		grow_variable_table(s);
 	}
 	variable v;
+	
+	//VERY TEMPORARY DO ACTUAL SIZE STUFF
+	v.offset = s->offset++;
+
 	memcpy((void *)v.name, (void *)var_name, strlen(var_name)+1);
 	s->variables[s->variable_count] = v;
 	s->variable_count++;
+
 
 }
 

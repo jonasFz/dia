@@ -4,6 +4,7 @@
 
 #include "parse.h"
 #include "type.h"
+#include "dsm/dsm.h"
 
 void verify(type_table * tt, scope *scope, node *n){
 	if(n->type == TYPE_GLOBAL){
@@ -42,6 +43,10 @@ void verify(type_table * tt, scope *scope, node *n){
 		if(!find_variable(scope, n->value)){
 			printf("Variable '%s' has not been declared\n", n->value); 
 			exit(1);
+		}
+	}else if(n->type == TYPE_CALL_PARAMS){
+		for(int i = 0; i < n->nodes.len; i++){
+			verify(tt, n->scope, n->nodes.nodes + i);
 		}
 	}
 }
