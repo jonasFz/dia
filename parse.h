@@ -45,18 +45,18 @@ typedef struct parser{
 }parser;
 
 
-typedef struct node node;
+typedef struct Node Node;
 
 
 typedef struct node_list{
 	int len;
 	int cap;
 
-	node *nodes;
+	Node *nodes;
 }node_list;
 
 
-struct node{
+struct Node{
 	unsigned int type;
 
 	char *value;
@@ -72,8 +72,8 @@ struct node{
 };
 
 parser make_parser(char *);
-node* parse_function(parser*);
-node* parse_global(parser*);
-void print_node(parser*, node*);
+Node* parse_function(parser*);
+Node* parse_global(parser*);
+void print_node(parser*, Node*);
 
 #endif

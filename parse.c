@@ -30,23 +30,23 @@ void create_node_list(node_list *nl){
 	nl->len = 0;
 	nl->cap = 8;
 
-	nl->nodes = (node *)malloc(nl->cap*sizeof(node));
+	nl->nodes = (Node *)malloc(nl->cap*sizeof(Node));
 }
 
 
 // CAUTION that *n down there might have consequences.
-void append_node(node *p, node *n){
+void append_node(Node *p, Node *n){
 	node_list nl = p->nodes;
 	if (nl.len == nl.cap){
-		nl.nodes = (node *)realloc(nl.nodes, nl.cap*2*sizeof(node));
+		nl.nodes = (Node *)realloc(nl.nodes, nl.cap*2*sizeof(Node));
 		nl.cap *= 2;
 	}
 	nl.nodes[nl.len++] = *n;
 	p->nodes = nl;
 }
 
-node* create_node(parser *p, int index, int length){
-	node *n = (node *)malloc(sizeof(node));
+Node* create_node(parser *p, int index, int length){
+	Node *n = (Node *)malloc(sizeof(Node));
 	n->index = index;
 	n->length = length;
 
@@ -86,9 +86,9 @@ void fail_hard(){
 
 
 
-node* claim_type(parser *p, unsigned int type){
+Node* claim_type(parser *p, unsigned int type){
 
-	node *n = create_node(p, p->cur, p->off);
+	Node *n = create_node(p, p->cur, p->off);
 	n->type = type;
 
 	p->cur +=  p->off;
@@ -97,9 +97,10 @@ node* claim_type(parser *p, unsigned int type){
 	return n;
 }
 
-node* claim(parser *p){
+Node* claim(parser *p){
 	return claim_type(p, TYPE_UNDEFINED);
 }
+
 void print_indent(int indent){
 	while (indent != 0){
 		printf(" ");
@@ -107,7 +108,7 @@ void print_indent(int indent){
 	}
 }
 
-void __print_node(parser *p, node *n, int indent){
+void __print_node(parser *p, Node *n, int indent){
 	print_indent(indent);
 	printf("%s:%s", decode_type(n->type), n->value);
 	/*for(int i = 0; i < n->length; i++){
@@ -125,7 +126,7 @@ void __print_node(parser *p, node *n, int indent){
 	}
 
 }
-void print_node(parser *p, node *n){
+void print_node(parser *p, Node *n){
 	__print_node(p, n, 0);
 }
 
@@ -194,7 +195,7 @@ int accept_operator(parser *p, unsigned int *precedence){
 	return p->off;
 }
 
-node* parse_digit(parser *p){
+Node* parse_digit(parser *p){
 	eat_spaces(p);
 	if (accept_digit(p)){
 		return claim_type(p, TYPE_INTEGER);
@@ -202,7 +203,7 @@ node* parse_digit(parser *p){
 	return NULL;
 }
 
-node* parse_ident(parser *p){
+Node* parse_ident(parser *p){
 	eat_spaces(p);
 	if (accept_ident(p)){
 		return claim_type(p, TYPE_IDENT);
@@ -211,18 +212,18 @@ node* parse_ident(parser *p){
 	return NULL;
 }
 
-node* parse_operator(parser *p){
+Node* parse_operator(parser *p){
 	eat_spaces(p);
 	unsigned int precedence = 0;
 	if (accept_operator(p, &precedence)){
-		node *ret = claim_type(p, TYPE_OPERATOR);
+		Node *ret = claim_type(p, TYPE_OPERATOR);
 		ret->precedence = precedence;
 		return ret;
 	}
 	return NULL;
 }
 
-node* parse_decl(parser *p){
+Node* parse_decl(parser *p){
 	eat_spaces(p);
 
 	if (!accept(p, "var")){
@@ -230,10 +231,10 @@ node* parse_decl(parser *p){
 	}
 	ignore_current(p);
 
-	node* ret = claim_type(p, TYPE_DECL);
+	Node* ret = claim_type(p, TYPE_DECL);
 
-	node *ident = parse_ident(p);
-	node *type = parse_ident(p);
+	Node *ident = parse_ident(p);
+	Node *type = parse_ident(p);
 
 	if(type == NULL){
 		printf("No type given when declaring '%s'\n'", ident->value);
@@ -246,14 +247,14 @@ node* parse_decl(parser *p){
 }
 
 
-node* parse_expression(parser *);
-node* parse_call_params(parser *p){
+Node* parse_expression(parser *);
+Node* parse_call_params(parser *p){
 	eat_spaces(p);
 	if(!accept(p, "(")){
 		return NULL;
 	}
 	ignore_current(p);
-	node* params = claim_type(p, TYPE_CALL_PARAMS);
+	Node* params = claim_type(p, TYPE_CALL_PARAMS);
 	eat_spaces(p);
 	if(accept(p, ")")){
 		return params;
@@ -275,9 +276,9 @@ node* parse_call_params(parser *p){
 	return NULL;
 }
 
-node* parse_operand(parser *p){
+Node* parse_operand(parser *p){
 
-	node *ret = parse_decl(p);
+	Node *ret = parse_decl(p);
 	if (ret) return ret;
 
 	ret = parse_ident(p);
@@ -285,9 +286,9 @@ node* parse_operand(parser *p){
 
 	//Is this a function call or just a regular identifier
 	if (ret){
-		node *params = parse_call_params(p);
+		Node *params = parse_call_params(p);
 		if(params){
-			node *fcall = claim_type(p, TYPE_CALL);
+			Node *fcall = claim_type(p, TYPE_CALL);
 			append_node(fcall, ret);
 			append_node(fcall, params);
 			return fcall;
@@ -301,7 +302,7 @@ node* parse_operand(parser *p){
 	return NULL;
 }
 
-int compare_precedence(node *a, node *b){
+int compare_precedence(Node *a, Node *b){
 	if (a->precedence < b->precedence){
 		return 1;
 	}else if (a->precedence > b->precedence){
@@ -311,23 +312,23 @@ int compare_precedence(node *a, node *b){
 	}
 }
 
-node* parse_expression(parser *p){
-	node *nstack[128];
+Node* parse_expression(parser *p){
+	Node *nstack[128];
 	int nsp = 0;
 
-	node *ostack[128];
+	Node *ostack[128];
 	int osp = 0;
 
 	eat_spaces(p);
 	int gogo = 1;
 	while(gogo){
-		node *thing = parse_operator(p);
+		Node *thing = parse_operator(p);
 		if (thing){
 			if(osp > 0){
 				if(compare_precedence(ostack[osp-1], thing) >= 0){
-					node *top = ostack[--osp];
-					node *r = nstack[--nsp];
-					node *l = nstack[--nsp];
+					Node *top = ostack[--osp];
+					Node *r = nstack[--nsp];
+					Node *l = nstack[--nsp];
 					append_node(top, l);
 					append_node(top, r);
 					nstack[nsp++] = top;
@@ -335,7 +336,7 @@ node* parse_expression(parser *p){
 			}
 			ostack[osp++] = thing;
 		}else{
-			node *operand = parse_operand(p);
+			Node *operand = parse_operand(p);
 			if(!operand){
 				gogo = 0;
 				break;
@@ -345,9 +346,9 @@ node* parse_expression(parser *p){
 		eat_spaces(p);
 	}
 	while(osp !=0){
-		node *top = ostack[--osp];
-		node *r = nstack[--nsp];
-		node *l = nstack[--nsp];
+		Node *top = ostack[--osp];
+		Node *r = nstack[--nsp];
+		Node *l = nstack[--nsp];
 		append_node(top, l);
 		append_node(top, r);
 		nstack[nsp++] = top;
@@ -360,9 +361,9 @@ node* parse_expression(parser *p){
 	return nstack[0];
 }
 
-node* parse_block(parser *p){
+Node* parse_block(parser *p){
 	
-	node *block = claim_type(p, TYPE_BLOCK);
+	Node *block = claim_type(p, TYPE_BLOCK);
 
 	eat_spaces(p);
 	if (!accept(p, "{")){
@@ -387,12 +388,10 @@ node* parse_block(parser *p){
 	}
 	ignore_current(p);
 	return block;
-
-
 }
 
 
-node* parse_params(parser *p){
+Node* parse_params(parser *p){
 	eat_spaces(p);
 
 	if(!accept(p, "(")){
@@ -402,7 +401,7 @@ node* parse_params(parser *p){
 	}
 	ignore_current(p);
 
-	node *n = claim_type(p, TYPE_PARAM_LIST);
+	Node *n = claim_type(p, TYPE_PARAM_LIST);
 
 	if(!accept(p, ")")){
 		while(1){
@@ -425,7 +424,7 @@ node* parse_params(parser *p){
 	return n;
 }
 
-node* parse_return_type(parser *p){
+Node* parse_return_type(parser *p){
 	eat_spaces(p);
 	if(!accept(p, "->")){
 		printf("Expected a '->' before function body\n");
@@ -436,7 +435,7 @@ node* parse_return_type(parser *p){
 	return parse_ident(p);
 }
 
-node* parse_function(parser *p){
+Node* parse_function(parser *p){
 	eat_spaces(p);
 	
 	if(!accept(p, "function")){
@@ -446,13 +445,13 @@ node* parse_function(parser *p){
 	}
 	ignore_current(p);
 
-	node *n = claim_type(p, TYPE_FUNCTION);
+	Node *n = claim_type(p, TYPE_FUNCTION);
 
 	eat_spaces(p);
 
 	accept_ident(p);
 
-	node *ident = parse_ident(p);
+	Node *ident = parse_ident(p);
 
 	append_node(n, ident);
 	append_node(n, parse_params(p));
@@ -462,8 +461,9 @@ node* parse_function(parser *p){
 	
 	return n;
 }
-node *parse_global(parser *p){
-	node *global = claim_type(p, TYPE_GLOBAL);
+
+Node *parse_global(parser *p){
+	Node *global = claim_type(p, TYPE_GLOBAL);
 
 	eat_spaces(p);
 	while(!DONE(p)){

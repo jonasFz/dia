@@ -7,7 +7,7 @@
 #include "dsm/dsm.h"
 #include "array.h"
 
-void verify(type_table * tt, scope *scope, node *n){
+void verify(type_table * tt, scope *scope, Node *n){
 	if(n->type == TYPE_GLOBAL){
 		n->scope = scope;
 		for(int i = 0;i<n->nodes.len;i++){
@@ -16,7 +16,7 @@ void verify(type_table * tt, scope *scope, node *n){
 	}else if(n->type == TYPE_FUNCTION){
 		//Not sure if this is the scope that makes most sense, doesn't really need anyscope
 		n->scope = scope;
-		node *block = &n->nodes.nodes[1];
+		Node *block = &n->nodes.nodes[1];
 		verify(tt, n->scope, block);
 
 	}else if(n->type == TYPE_BLOCK){
@@ -123,7 +123,7 @@ int main(int argc, char **argv){
 
 	parser p = make_parser(argv[1]);
 
-	node *global = parse_global(&p);
+	Node *global = parse_global(&p);
 	print_node(&p, global);
 
 	scope *global_scope = create_scope(NULL);
