@@ -5,6 +5,7 @@
 #include "parse.h"
 #include "type.h"
 #include "dsm/dsm.h"
+#include "array.h"
 
 void verify(type_table * tt, scope *scope, node *n){
 	if(n->type == TYPE_GLOBAL){
@@ -76,6 +77,40 @@ char *load_file(char *file_path){
 	return data;
 }
 
+typedef struct Parameter{
+	char *name;
+	int offset;
+} Parameter;
+
+typedef struct Function{
+	char *name;
+	Array params;
+
+	int param_offset;
+} Function;
+
+int offset_for_param(Function function, char *name){
+	Array_Iter at = make_array_iter(&function.params);
+	Parameter *p = (Parameter *)next_item(&at);
+	while(p != NULL){
+		if(strcmp(p->name, name) == 0){
+			return p->offset;
+		}
+	}
+	return -1;
+}
+
+void print_function(Function function){
+	printf("%s\n", function.name);
+	Array_Iter at = make_array_iter(&function.params);
+
+	Parameter *p = (Parameter *)next_item(&at);
+	while(p!=NULL){
+		printf("Name: %s, Offset: %d\n", p->name, p->offset);
+		p = next_item(&at);
+	}
+}
+
 int main(int argc, char **argv){
 
 	if(argc != 2){
@@ -93,6 +128,7 @@ int main(int argc, char **argv){
 
 	scope *global_scope = create_scope(NULL);
 	verify(tt, global_scope, global);
+
 
 	//print_type_table(tt);
 

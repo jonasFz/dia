@@ -16,12 +16,15 @@
 #define INST_LOAD_R	12
 #define INST_LOAD_I	13
 #define INST_LOAD_RI	14
-#define INST_CALL_I	15
-#define INST_CALL_R	16
-#define INST_RET	17
+#define INST_SAVE_R	15
+#define INST_SAVE_I	16
+#define INST_SAVE_RI	17
+#define INST_CALL_I	18
+#define INST_CALL_R	19
+#define INST_RET	20
 
 
-#define OP_COUNT 18
+#define OP_COUNT 21
 
 #define R0	0
 #define R1	1

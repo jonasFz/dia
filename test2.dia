@@ -1,6 +1,8 @@
 function add(var a u32, var b u32) -> u32{
-	var c u32 = a + b;
-	var return u32 = c;
+	var c u32;
+	c = a + b;
+	var return u32;
+	return = c;
 }
 
 function main() -> void{

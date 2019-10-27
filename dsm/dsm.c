@@ -19,6 +19,9 @@ const char *OP[OP_COUNT] ={
 	"LOAD_R",
 	"LOAD_I",
 	"LOAD_RI",
+	"SAVE_R",
+	"SAVE_I",
+	"SAVE_RI",
 	"CALL_I",
 	"CALL_R",
 	"RET"
@@ -122,6 +125,15 @@ void interpret(Interp *interp, Code *proc, unsigned int start){
 			case INST_LOAD_RI:
 				interp->reg[i.a] = interp->stack[interp->reg[i.b] + i.c];
 				break;
+			case INST_SAVE_R:
+				interp->stack[interp->reg[i.a]] = interp->reg[i.b];
+				break;
+			case INST_SAVE_I:
+				interp->stack[interp->reg[i.a]] = i.b;
+				break;
+			case INST_SAVE_RI:
+				//interp->stack[interp->reg[i.a]]
+					break;
 			case INST_CALL_I://Will have to figure out what to do as far as saving the last one
 				interp->reg[RET] = interp->reg[IS];
 				interp->reg[IS] = i.a;
