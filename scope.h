@@ -3,36 +3,36 @@
 
 #include "type.h"
 
-typedef struct variable {
+typedef struct Variable {
 	char name[64];
-	type *type;
+	Type *type;
 	unsigned int offset;
-} variable;
+} Variable;
 
-typedef struct scope scope;
-struct scope {
-	scope *parent;
+typedef struct Scope Scope;
+struct Scope {
+	Scope *parent;
 
-	variable *variables;
+	Variable *variables;
 	int variable_count;
 	int variable_cap;
 
 	unsigned int offset;
 };
 
-typedef struct scope_iter{
-	scope *s;
+typedef struct Scope_Iter{
+	Scope *s;
 	int current;
-} scope_iter;
+} Scope_Iter;
 
-scope_iter make_scope_iter(scope *s);
+Scope_Iter make_scope_iter(Scope *s);
 
-variable* next(scope_iter* si);
-variable* current(scope_iter si);
+Variable* next(Scope_Iter* si);
+Variable* current(Scope_Iter si);
 
-scope* create_scope(scope *parent);
+Scope* create_scope(Scope *parent);
 
-void add_variable(scope *s, const char *var_name, type *t);
-variable* find_variable(scope *s, const char *var_name);
+void add_variable(Scope *s, const char *var_name, Type *t);
+Variable* find_variable(Scope *s, const char *var_name);
 
 #endif

@@ -4,15 +4,15 @@
 
 #include "type.h"
 
-type_table* make_type_table(){
-	type_table* tt = (type_table *)malloc(sizeof(type_table));
-	tt->types = (type *)malloc(sizeof(type) * 256);
+Type_Table* make_type_table(){
+	Type_Table* tt = (Type_Table *)malloc(sizeof(Type_Table));
+	tt->types = (Type *)malloc(sizeof(Type) * 256);
 	tt->cap = 256;
 
 	return tt;
 }
 
-type* find_type(type_table *tt, const char *name){
+Type* find_type(Type_Table *tt, const char *name){
 	for (int i = 0; i < tt->count; i++){
 		if (strcmp(name, tt->types[i].name) == 0){
 			return &tt->types[i];
@@ -21,12 +21,12 @@ type* find_type(type_table *tt, const char *name){
 	return NULL;
 }
 
-void register_type(type_table *tt, const char *name, unsigned int length){
+void register_type(Type_Table *tt, const char *name, unsigned int length){
 	if(tt->count == tt->cap){
-		tt->types = (type *)realloc(tt->types, tt->cap*2);
+		tt->types = (Type *)realloc(tt->types, tt->cap*2);
 		tt->cap *= 2;
 	}
-	type *t = &tt->types[tt->count++];
+	Type *t = &tt->types[tt->count++];
 
 	long int name_length = strlen(name);
 
@@ -36,7 +36,7 @@ void register_type(type_table *tt, const char *name, unsigned int length){
 	t->length = length;
 }
 
-void add_built_in_types(type_table *tt){
+void add_built_in_types(Type_Table *tt){
 	register_type(tt, "u8", 1);
 	register_type(tt, "s8", 1);
 	register_type(tt, "u16", 2);
@@ -48,7 +48,7 @@ void add_built_in_types(type_table *tt){
 	register_type(tt, "f32", 4);
 	register_type(tt, "f64", 8);
 }
-void print_type_table(type_table *tt){
+void print_type_table(Type_Table *tt){
 	for (int i = 0;i < tt->count; i++){
 		printf("%d %s\n", tt->types[i].length,  tt->types[i].name);
 	}

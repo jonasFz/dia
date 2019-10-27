@@ -7,7 +7,7 @@
 #include "dsm/dsm.h"
 #include "array.h"
 
-void verify(type_table * tt, scope *scope, Node *n){
+void verify(Type_Table * tt, Scope *scope, Node *n){
 	if(n->type == TYPE_GLOBAL){
 		n->scope = scope;
 		for(int i = 0;i<n->nodes.len;i++){
@@ -33,7 +33,7 @@ void verify(type_table * tt, scope *scope, Node *n){
 			printf("Variable '%s' has already been declared\n", L(n).value);
 			exit(1);
 		}
-		type *t = find_type(tt, R(n).value);
+		Type *t = find_type(tt, R(n).value);
 		if(t == NULL){
 			printf("Type '%s' has not been defined\n", R(n).value);
 			exit(1);
@@ -118,7 +118,7 @@ int main(int argc, char **argv){
 		return 0;
 	}
 
-	type_table* tt = make_type_table();
+	Type_Table* tt = make_type_table();
 	add_built_in_types(tt);
 
 	Parser p = make_parser(argv[1]);
@@ -126,7 +126,7 @@ int main(int argc, char **argv){
 	Node *global = parse_global(&p);
 	print_node(&p, global);
 
-	scope *global_scope = create_scope(NULL);
+	Scope *global_scope = create_scope(NULL);
 	verify(tt, global_scope, global);
 
 

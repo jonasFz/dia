@@ -1,22 +1,22 @@
 #ifndef _H_TYPE
 #define _H_TYPE
 
-typedef struct type{
+typedef struct Type{
 	char *name;
 	unsigned int length;
-}type;
+}Type;
 
-typedef struct type_table{
-	type *types;
+typedef struct Type_Table{
+	Type *types;
 	unsigned int count;
 	unsigned int cap;
-} type_table;
+} Type_Table;
 
-type_table* make_type_table();
-type* find_type(type_table *tt, const char *name);
-void register_type(type_table *tt, const char* name, unsigned int length);
+Type_Table* make_type_table();
+Type* find_type(Type_Table *tt, const char *name);
+void register_type(Type_Table *tt, const char* name, unsigned int length);
 
-void add_built_in_types(type_table *tt);
-void print_type_table(type_table *tt);
+void add_built_in_types(Type_Table *tt);
+void print_type_table(Type_Table *tt);
 
 #endif

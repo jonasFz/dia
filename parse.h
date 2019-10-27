@@ -68,7 +68,7 @@ struct Node{
 
 	Node_List nodes;
 
-	scope *scope;
+	Scope *scope;
 };
 
 Parser make_parser(char *);
