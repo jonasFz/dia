@@ -26,7 +26,7 @@ const char *decode_type(unsigned int type){
 	return TYPES[type];
 }
 
-void create_node_list(node_list *nl){
+void create_node_list(Node_List *nl){
 	nl->len = 0;
 	nl->cap = 8;
 
@@ -36,7 +36,7 @@ void create_node_list(node_list *nl){
 
 // CAUTION that *n down there might have consequences.
 void append_node(Node *p, Node *n){
-	node_list nl = p->nodes;
+	Node_List nl = p->nodes;
 	if (nl.len == nl.cap){
 		nl.nodes = (Node *)realloc(nl.nodes, nl.cap*2*sizeof(Node));
 		nl.cap *= 2;

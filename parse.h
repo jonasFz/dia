@@ -48,12 +48,12 @@ typedef struct Parser{
 typedef struct Node Node;
 
 
-typedef struct node_list{
+typedef struct Node_List{
 	int len;
 	int cap;
 
 	Node *nodes;
-}node_list;
+}Node_List;
 
 
 struct Node{
@@ -66,7 +66,7 @@ struct Node{
 
 	unsigned int precedence;
 
-	node_list nodes;
+	Node_List nodes;
 
 	scope *scope;
 };
