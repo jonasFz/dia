@@ -45,7 +45,7 @@ void append_node(Node *p, Node *n){
 	p->nodes = nl;
 }
 
-Node* create_node(parser *p, int index, int length){
+Node* create_node(Parser *p, int index, int length){
 	Node *n = (Node *)malloc(sizeof(Node));
 	n->index = index;
 	n->length = length;
@@ -68,8 +68,8 @@ Node* create_node(parser *p, int index, int length){
 }
 
 char *load_file(char *);
-parser make_parser(char *src_path){
-	parser p;
+Parser make_parser(char *src_path){
+	Parser p;
 	p.src = load_file(src_path);
 	p.cur = 0;
 	p.off = 0;
@@ -86,7 +86,7 @@ void fail_hard(){
 
 
 
-Node* claim_type(parser *p, unsigned int type){
+Node* claim_type(Parser *p, unsigned int type){
 
 	Node *n = create_node(p, p->cur, p->off);
 	n->type = type;
@@ -97,7 +97,7 @@ Node* claim_type(parser *p, unsigned int type){
 	return n;
 }
 
-Node* claim(parser *p){
+Node* claim(Parser *p){
 	return claim_type(p, TYPE_UNDEFINED);
 }
 
@@ -108,7 +108,7 @@ void print_indent(int indent){
 	}
 }
 
-void __print_node(parser *p, Node *n, int indent){
+void __print_node(Parser *p, Node *n, int indent){
 	print_indent(indent);
 	printf("%s:%s", decode_type(n->type), n->value);
 	/*for(int i = 0; i < n->length; i++){
@@ -126,19 +126,19 @@ void __print_node(parser *p, Node *n, int indent){
 	}
 
 }
-void print_node(parser *p, Node *n){
+void print_node(Parser *p, Node *n){
 	__print_node(p, n, 0);
 }
 
 /* Maybe this should be inlined, or a macro */
-void eat_spaces(parser *p){
+void eat_spaces(Parser *p){
 	while(CUR(p) == ' ' || CUR(p) == '\n' || CUR(p) == '\t'){
 		p->cur++;
 	}
 	p->off = 0;
 }
 
-int accept(parser *p, char *pattern){
+int accept(Parser *p, char *pattern){
 	int i = 0;
 	while(pattern[i] != '\0'){
 		if (pattern[i] != p->src[p->cur+i]){
@@ -151,13 +151,13 @@ int accept(parser *p, char *pattern){
 	return 1;
 }
 
-void ignore_current(parser *p){
+void ignore_current(Parser *p){
 	p->cur += p->off;
 	p->off = 0;
 }
 
 //These accept funtions are assuming that the initial offset equals zero
-int accept_ident(parser *p){
+int accept_ident(Parser *p){
 	//ident cannot start with a number
 	if (!ALPHA(CUR(p))){
 		return p->off;
@@ -169,7 +169,7 @@ int accept_ident(parser *p){
 	return p->off;
 }
 
-int accept_digit(parser *p){
+int accept_digit(Parser *p){
 	while(CUR(p) >= '0' && CUR(p) <='9'){
 		p->off++;
 	}	
@@ -179,7 +179,7 @@ int accept_digit(parser *p){
 
 //Incomplete
 //precedence choices match c for now, until I figure out what I need
-int accept_operator(parser *p, unsigned int *precedence){
+int accept_operator(Parser *p, unsigned int *precedence){
 	if (CUR(p) == '='){
 		p->off++;
 		*precedence = 16;
@@ -195,7 +195,7 @@ int accept_operator(parser *p, unsigned int *precedence){
 	return p->off;
 }
 
-Node* parse_digit(parser *p){
+Node* parse_digit(Parser *p){
 	eat_spaces(p);
 	if (accept_digit(p)){
 		return claim_type(p, TYPE_INTEGER);
@@ -203,7 +203,7 @@ Node* parse_digit(parser *p){
 	return NULL;
 }
 
-Node* parse_ident(parser *p){
+Node* parse_ident(Parser *p){
 	eat_spaces(p);
 	if (accept_ident(p)){
 		return claim_type(p, TYPE_IDENT);
@@ -212,7 +212,7 @@ Node* parse_ident(parser *p){
 	return NULL;
 }
 
-Node* parse_operator(parser *p){
+Node* parse_operator(Parser *p){
 	eat_spaces(p);
 	unsigned int precedence = 0;
 	if (accept_operator(p, &precedence)){
@@ -223,7 +223,7 @@ Node* parse_operator(parser *p){
 	return NULL;
 }
 
-Node* parse_decl(parser *p){
+Node* parse_decl(Parser *p){
 	eat_spaces(p);
 
 	if (!accept(p, "var")){
@@ -247,8 +247,8 @@ Node* parse_decl(parser *p){
 }
 
 
-Node* parse_expression(parser *);
-Node* parse_call_params(parser *p){
+Node* parse_expression(Parser *);
+Node* parse_call_params(Parser *p){
 	eat_spaces(p);
 	if(!accept(p, "(")){
 		return NULL;
@@ -276,7 +276,7 @@ Node* parse_call_params(parser *p){
 	return NULL;
 }
 
-Node* parse_operand(parser *p){
+Node* parse_operand(Parser *p){
 
 	Node *ret = parse_decl(p);
 	if (ret) return ret;
@@ -312,7 +312,7 @@ int compare_precedence(Node *a, Node *b){
 	}
 }
 
-Node* parse_expression(parser *p){
+Node* parse_expression(Parser *p){
 	Node *nstack[128];
 	int nsp = 0;
 
@@ -361,7 +361,7 @@ Node* parse_expression(parser *p){
 	return nstack[0];
 }
 
-Node* parse_block(parser *p){
+Node* parse_block(Parser *p){
 	
 	Node *block = claim_type(p, TYPE_BLOCK);
 
@@ -391,7 +391,7 @@ Node* parse_block(parser *p){
 }
 
 
-Node* parse_params(parser *p){
+Node* parse_params(Parser *p){
 	eat_spaces(p);
 
 	if(!accept(p, "(")){
@@ -424,7 +424,7 @@ Node* parse_params(parser *p){
 	return n;
 }
 
-Node* parse_return_type(parser *p){
+Node* parse_return_type(Parser *p){
 	eat_spaces(p);
 	if(!accept(p, "->")){
 		printf("Expected a '->' before function body\n");
@@ -435,7 +435,7 @@ Node* parse_return_type(parser *p){
 	return parse_ident(p);
 }
 
-Node* parse_function(parser *p){
+Node* parse_function(Parser *p){
 	eat_spaces(p);
 	
 	if(!accept(p, "function")){
@@ -462,7 +462,7 @@ Node* parse_function(parser *p){
 	return n;
 }
 
-Node *parse_global(parser *p){
+Node *parse_global(Parser *p){
 	Node *global = claim_type(p, TYPE_GLOBAL);
 
 	eat_spaces(p);

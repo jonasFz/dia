@@ -121,7 +121,7 @@ int main(int argc, char **argv){
 	type_table* tt = make_type_table();
 	add_built_in_types(tt);
 
-	parser p = make_parser(argv[1]);
+	Parser p = make_parser(argv[1]);
 
 	Node *global = parse_global(&p);
 	print_node(&p, global);

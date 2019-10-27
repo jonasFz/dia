@@ -35,14 +35,14 @@
 
 const char *decode_type(unsigned int type);
 
-typedef struct parser{
+typedef struct Parser{
 	char *src;
 	int cur;
 	int off;
 
 	int state;
 
-}parser;
+}Parser;
 
 
 typedef struct Node Node;
@@ -71,9 +71,9 @@ struct Node{
 	scope *scope;
 };
 
-parser make_parser(char *);
-Node* parse_function(parser*);
-Node* parse_global(parser*);
-void print_node(parser*, Node*);
+Parser make_parser(char *);
+Node* parse_function(Parser*);
+Node* parse_global(Parser*);
+void print_node(Parser*, Node*);
 
 #endif
