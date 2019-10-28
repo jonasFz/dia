@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "dsm.h"
 
@@ -42,7 +43,29 @@ Code make_code(){
 	c.length = 0;
 	c.cap = 128;
 
+	c.labels = make_array(sizeof(Label));
+
 	return c;
+}
+
+void add_label(Code *code, char *label, int value){
+	Label l;
+	l.value = label;
+	l.location = value;
+
+	add_item(&code->labels, &l);
+}
+
+int lookup_label(Code *code, char* label){
+	Array_Iter at = make_array_iter(&code->labels);
+	Label *l = (Label *)next_item(&at);
+	while(l != NULL){
+		if(strcmp(l->value, label) == 0){
+			return l->location;
+		}
+		l = (Label *) next_item(&at);
+	}
+	return -1;
 }
 
 void add_inst(Code *code, Inst inst){
@@ -53,6 +76,12 @@ void add_inst(Code *code, Inst inst){
 	code->code[code->length++] = inst;
 }
 
+void show_code(Code *code){
+	for (int i = 0; i < code->length; i++){
+		Inst inst = code->code[i];
+		printf("%3d %s %d %d %d\n",i, OP[inst.inst], inst.a, inst.b, inst.c);
+	}
+}
 
 void interpret(Interp *interp, Code *proc, unsigned int start){
 	
@@ -75,10 +104,9 @@ void interpret(Interp *interp, Code *proc, unsigned int start){
 		}
 
 		Inst i = code[interp->reg[IS]++];
-		
-		printf("SP=%d, FP=%d, RET=%d, IS=%d\n", interp->reg[SP], interp->reg[FP], interp->reg[RET], interp->reg[IS]);
+		//printf("SP=%d, FP=%d, RET=%d, IS=%d\n", interp->reg[SP], interp->reg[FP], interp->reg[RET], interp->reg[IS]);
 		//printf("%s %d %d %d\n", OP[i.inst], i.a, i.b, i.c);
-	
+
 		switch(i.inst){
 			case INST_HALT:
 				running = 0;
@@ -99,21 +127,22 @@ void interpret(Interp *interp, Code *proc, unsigned int start){
 				interp->reg[i.a] = interp->reg[i.b];
 				break;
 			case INST_POP_R:
-				interp->reg[i.a] = interp->stack[interp->reg[SP]--];
+				interp->reg[i.a] = interp->stack[--interp->reg[SP]];
 				break;
 			case INST_POP:
 				interp->reg[SP]--;
 				break;
 			case INST_PUSH_I:
-				interp->stack[++interp->reg[SP]] = i.a;
+				interp->stack[interp->reg[SP]++] = i.a;
 				break;
 			case INST_PUSH_R:
-				interp->stack[++interp->reg[SP]] = interp->reg[i.a];
+				interp->stack[interp->reg[SP]++] = interp->reg[i.a];
 				break;
 			case INST_ADD_I:
 				interp->reg[i.a] = interp->reg[i.b] + i.c;
 				break;
 			case INST_ADD_R:
+				//printf("%d = %d + %d", interp->reg[i.a], interp->reg[i.b], interp->reg[i.c]);
 				interp->reg[i.a] = interp->reg[i.b] + interp->reg[i.c];
 				break;
 			case INST_LOAD_R://Just does stack for the moment
@@ -149,6 +178,13 @@ void interpret(Interp *interp, Code *proc, unsigned int start){
 				printf("%d is not an opcode that we understand\n", interp->reg[IS]);
 				running = 0;
 		}
+		/*printf("~");
+		for( int i = 0;i < interp->reg[SP]; i++){
+			printf("%d|", interp->stack[i]);
+		}
+		printf("-- R0=%d R1=%d\n", interp->reg[R0], interp->reg[R1]);
+		*/
+
 	}
 }
 

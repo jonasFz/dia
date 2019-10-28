@@ -1,6 +1,8 @@
 #ifndef _H_DSM
 #define _H_DSM
 
+#include "../array.h"
+
 #define INST_HALT	0
 #define INST_GOTO_I	1
 #define INST_GOTO_R	2
@@ -47,6 +49,11 @@ typedef struct Inst{
 
 } Inst;
 
+typedef struct Label{
+	char *value;
+	int location;
+} Label;
+
 typedef struct Interp{
 	unsigned int reg[12];
 
@@ -56,12 +63,19 @@ typedef struct Interp{
 
 typedef struct Code{
 	Inst *code;
+	Array labels;
 	unsigned int length;
 	unsigned int cap;
 } Code;
 
+void add_label(Code *code, char *label, int value);
+int lookup_label(Code *code, char *label);
+
 void interpret(Interp *interp, Code *proc, unsigned int start);
 int load_dsm(const char *file_path, Code *code);
+Inst make_inst(unsigned int inst, int a, int b, int c);
+void add_inst(Code *code, Inst inst);
 Code make_code();
+void show_code(Code *code);
 
 #endif

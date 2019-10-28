@@ -113,46 +113,66 @@ void print_function(Function function){
 }
 
 //This could probably be a macro but I will wait until it is finalized, eventually I wont just be printing this stuff out and will actually be building code
-void emit_instruction(const char *op, int a, int b, int c){
-	printf("%s %d %d %d\n", op, a, b, c);
+void emit_instruction(Code *code, unsigned int op, int a, int b, int c){
+	Inst i = make_inst(op, a, b, c);
+	add_inst(code, i);
 }
-
-void emit_operator(Function f, Node *operator);
-void emit_operand(Function f, Node *operand){
+void emit_call(Code *code, Function f, Node *operator);
+void emit_operator(Code *code, Function f, Node *operator);
+void emit_operand(Code *code, Function f, Node *operand){
 	//printf("Operand start\n");
 	if(operand->type == TYPE_IDENT){
 		int offset = offset_for_param(f, operand->value);
-		emit_instruction("LOAD_RI", 0, 9, offset);
-		emit_instruction("PUSH_R", 0, -1, -1);
+		emit_instruction(code, INST_LOAD_RI, 0, 9, offset);
+		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
 	}else if (operand->type == TYPE_OPERATOR){
-		emit_operator(f, operand);
+		emit_operator(code, f, operand);
+	}else if( operand->type == TYPE_CALL){
+		emit_call(code, f, operand);
+	}else if(operand->type == TYPE_INTEGER){
+		int val = atoi(operand->value);
+		emit_instruction(code, INST_PUSH_I, val, -1, -1);
 	}else{
 		printf("TODO: only identifier operands are currently implemented\n");
 	}
 	//printf("Operand stop\n");
 }
 
+void emit_call(Code *code, Function f, Node *operator){
+	emit_instruction(code, INST_PUSH_R, 9, -1, -1);//Save frame pointer
+	emit_instruction(code, INST_MOV_R, 9, 8, -1);//Move stack pointer into frame pointer
+	Node *params = CHILD(operator, 1);
+	for (int i = 0;i < params->nodes.len; i++){
+		emit_operand(code, f, CHILD(params, i));
+	}
+	int call_location = lookup_label(code, CHILD(operator, 0)->value);
+	if( call_location == -1){
+		printf("Trying to call function '%s' but it doesn't seem to exist yet\n", CHILD(operator, 0)->value);
+	}
+	emit_instruction(code, INST_CALL_I, call_location, -1, -1);
+}
+
 //This function is very stupid, every operand is pushed onto the stack but will
 //just be popped right off again, could optimize later or just generate smarter code
 //The goal currently is just to get any code running then I'll see about being smart
-void emit_operator(Function f, Node *operator){
+void emit_operator(Code *code, Function f, Node *operator){
 	//printf("Operator start\n");
 	Node *l = CHILD(operator, 0);
 	Node *r = CHILD(operator, 1);
-	emit_operand(f, l);
-	emit_operand(f, r);
-	emit_instruction("POP_R", 0, -1, -1);
-	emit_instruction("POP_R", 1, -1, -1);
+	emit_operand(code, f, l);
+	emit_operand(code, f, r);
+	emit_instruction(code, INST_POP_R, 0, -1, -1);
+	emit_instruction(code, INST_POP_R, 1, -1, -1);
 	if(operator->value[0] == '+'){
-		emit_instruction("ADD_R", 0, 0, 1);
-		emit_instruction("PUSH_R", 0, -1, -1);
+		emit_instruction(code, INST_ADD_R, 0, 0, 1);
+		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
 	}else{
 		printf("operator '%s' hasn't yet been implemented\n", operator->value);
 	}
 	//printf("Operator stop\n");
 }
 
-void emit_function(Node *func){
+void emit_function(Code *code, Node *func){
 	//printf("Function start\n");
 
 	Function f;
@@ -160,6 +180,10 @@ void emit_function(Node *func){
 	//Maybe a copy would be good so that the node doesn't need to stay in memory
 	f.name = CHILD(func, 0)->value;
 	f.params = make_array(sizeof(Parameter));
+
+	add_label(code, f.name, code->length);
+
+	printf("Emitting code for function '%s'\n", f.name);
 
 	//Deal with parameters, node code needs to be emitted as they will be pushed
 	//onto the stack by the caller.
@@ -186,40 +210,50 @@ void emit_function(Node *func){
 
 			add_item(&f.params, (void *)&p);
 
-			emit_instruction("PUSH_I", 0, -1, -1);
+			emit_instruction(code, INST_PUSH_I, 0, -1, -1);
 		}else if(line->type == TYPE_OPERATOR){
 			//Need to do a better job of checking this
 			if (line->value[0] == '='){
-				//What we need to do
-				//1. Load the address of the variable into a register
-				//2. Load the top of stack into another variable
-				//3. Save the value from the stack into the variable location
-				emit_operand(f, CHILD(line, 1));
+				emit_operand(code, f, CHILD(line, 1));
 
 				int offset = offset_for_param(f, CHILD(line, 0)->value);
 				//printf("Assignment start\n");
-				emit_instruction("ADD_I", 0, 9, offset); 
-				emit_instruction("POP_R", 1, -1, -1);
-				emit_instruction("SAVE_R", 0, 1, -1);	
+				emit_instruction(code, INST_ADD_I, 0, 9, offset); 
+				emit_instruction(code, INST_POP_R, 1, -1, -1);
+				emit_instruction(code, INST_SAVE_R, 0, 1, -1);	
 				//printf("Assignment stop\n");
 			}
+		}else if (line->type == TYPE_CALL){
+			emit_operand(code, f, line);
+		}else{
+			printf("Not really sure what to do with node of value '%s'\n", line->value);
 		}
 	}
 	int offset = offset_for_param(f, "return");
 	if(offset != -1){
-		emit_instruction("LOAD_RI", 0, 9, offset);
+		emit_instruction(code, INST_LOAD_RI, 0, 9, offset);
 	}
 	//Should actually just be a sub from SP
 	while(pop_item(&f.params)){
-		emit_instruction("POP", -1, -1, -1);
+		emit_instruction(code, INST_POP, -1, -1, -1);
 	}
-	emit_instruction("POP_R", 9, -1, -1);
+	emit_instruction(code, INST_POP_R, 9, -1, -1);
 	if(offset != -1){
-		emit_instruction("PUSH_R", 0, -1, -1);
+		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
 	}
 
-	//printf("Funtion stop\n");
-	print_function(f);
+	if( strcmp(CHILD(func, 0)->value, "main") == 0 ){
+		emit_instruction(code, INST_HALT, -1, -1, -1);
+	}else{
+		emit_instruction(code, INST_RET, -1, -1, -1);
+	}
+}
+
+void emit_functions(Code *code, Node *functions){
+	
+	for (int i = 0; i< functions->nodes.len; i++){
+		emit_function(code, CHILD(functions, i));
+	}
 }
 
 int main(int argc, char **argv){
@@ -240,7 +274,23 @@ int main(int argc, char **argv){
 	Scope *global_scope = create_scope(NULL);
 	verify(tt, global_scope, global);
 
-	emit_function(global->nodes.nodes);
+	Code code = make_code();
+
+	emit_functions(&code, global);
+
+	show_code(&code);
+
+	int start = lookup_label(&code, "main");
+	if(start == -1){
+		printf("Your program needs a main function");
+	}else{
+		printf("Looks like main is at '%d'\n", start);
+		Interp interp;
+		interpret(&interp, &code, start);
+		printf("%d\n", interp.stack[interp.reg[SP]]);
+	}
+
+	//emit_function(global->nodes.nodes);
 
 	//print_type_table(tt);
 
