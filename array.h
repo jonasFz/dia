@@ -1,6 +1,8 @@
 #ifndef _H_ARRAY
 #define _H_ARRAY
 
+#define INDEX(a, i) (a.data + (a.item_size * i))
+
 typedef struct Array{
 	void *data;
 	int byte_count;

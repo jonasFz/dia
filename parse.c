@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "parse.h"
+#include "array.h"
 
 const char *TYPES[] = {
 	"undefined",
@@ -26,23 +27,9 @@ const char *decode_type(unsigned int type){
 	return TYPES[type];
 }
 
-void create_node_list(Node_List *nl){
-	nl->len = 0;
-	nl->cap = 8;
-
-	nl->nodes = (Node *)malloc(nl->cap*sizeof(Node));
-}
-
-
 // CAUTION that *n down there might have consequences.
 void append_node(Node *p, Node *n){
-	Node_List nl = p->nodes;
-	if (nl.len == nl.cap){
-		nl.nodes = (Node *)realloc(nl.nodes, nl.cap*2*sizeof(Node));
-		nl.cap *= 2;
-	}
-	nl.nodes[nl.len++] = *n;
-	p->nodes = nl;
+	add_item(&p->nodes, (void *)n);
 }
 
 Node* create_node(Parser *p, int index, int length){
@@ -61,8 +48,7 @@ Node* create_node(Parser *p, int index, int length){
 	n->type = TYPE_UNDEFINED;
 
 	n->scope = NULL;
-
-	create_node_list(&n->nodes);
+	n->nodes = make_array(sizeof(Node));
 
 	return n;
 }
@@ -114,10 +100,10 @@ void __print_node(Parser *p, Node *n, int indent, int count){
 	/*for(int i = 0; i < n->length; i++){
 		printf("%c", p->src[n->index+i]);
 	}*/
-	if (n->nodes.len>0){
+	if (n->nodes.item_count > 0){
 		printf("[\n");
-		for (int i = 0; i < n->nodes.len; i++){
-			__print_node(p, &n->nodes.nodes[i], indent + 1, i);
+		for (int i = 0; i < n->nodes.item_count; i++){
+			__print_node(p, (Node *)INDEX(n->nodes, i), indent + 1, i);
 		}
 		print_indent(indent);
 		printf("]\n");

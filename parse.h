@@ -2,7 +2,7 @@
 #define _PARSE_H
 
 #include "scope.h"
-
+#include "array.h"
 
 #define STATE_ERROR 	0
 #define STATE_DONE	1
@@ -27,14 +27,15 @@
 #define TYPE_CALL		12
 #define TYPE_CALL_PARAMS	13
 
-#define L(n) n->nodes.nodes[0]
-#define R(n) n->nodes.nodes[1]
+#define L(n) ((Node *)INDEX(n->nodes, 0))
+#define R(n) ((Node *)INDEX(n->nodes, 1))
 
 #define ALPHA(c) ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
 #define NUM(c) (c >= '0' && c <= '9') 
 
 
-#define CHILD(n, i) (n->nodes.nodes + i) 
+//Please make sure the list actually contains nodes!
+#define CHILD(n, i) ((Node *)(INDEX(n->nodes, i))) 
 
 const char *decode_type(unsigned int type);
 
@@ -50,15 +51,6 @@ typedef struct Parser{
 
 typedef struct Node Node;
 
-
-typedef struct Node_List{
-	int len;
-	int cap;
-
-	Node *nodes;
-}Node_List;
-
-
 struct Node{
 	unsigned int type;
 
@@ -69,7 +61,7 @@ struct Node{
 
 	unsigned int precedence;
 
-	Node_List nodes;
+	Array nodes;
 
 	Scope *scope;
 };

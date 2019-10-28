@@ -6,5 +6,5 @@ function add(var a u32, var b u32) -> u32{
 }
 
 function main() -> void{
-	add(60, 9);
+	add(add(2,2), add(2,2));
 }

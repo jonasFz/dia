@@ -10,35 +10,39 @@
 void verify(Type_Table * tt, Scope *scope, Node *n){
 	if(n->type == TYPE_GLOBAL){
 		n->scope = scope;
-		for(int i = 0;i<n->nodes.len;i++){
-			verify(tt, scope, &n->nodes.nodes[i]);
+		Array_Iter at = make_array_iter(&n->nodes);
+		Node *node = NULL;
+		while((node = (Node *)next_item(&at)) != NULL){
+			verify(tt, scope, node);
 		}
 	}else if(n->type == TYPE_FUNCTION){
 		//Not sure if this is the scope that makes most sense, doesn't really need anyscope
 		n->scope = scope;
-		Node *block = &n->nodes.nodes[1];
+		Node *block = (Node *)INDEX(n->nodes, 1);;
 		verify(tt, n->scope, block);
 
 	}else if(n->type == TYPE_BLOCK){
 		n->scope = create_scope(scope);
-		for (int i = 0; i < n->nodes.len; i++){
-			verify(tt, n->scope, &n->nodes.nodes[i]);
+		Array_Iter at = make_array_iter(&n->nodes);
+		Node *node = NULL;
+		while((node = (Node *)next_item(&at)) != NULL){
+			verify(tt, n->scope, node);
 		}
 	}else if(n->type == TYPE_OPERATOR){
 		n->scope = scope;
-		verify(tt, n->scope, &L(n));
-		verify(tt, n->scope, &R(n));
+		verify(tt, n->scope, L(n));
+		verify(tt, n->scope, R(n));
 	}else if(n->type == TYPE_DECL){
-		if (find_variable(scope, L(n).value)){
-			printf("Variable '%s' has already been declared\n", L(n).value);
+		if (find_variable(scope, L(n)->value)){
+			printf("Variable '%s' has already been declared\n", L(n)->value);
 			exit(1);
 		}
-		Type *t = find_type(tt, R(n).value);
+		Type *t = find_type(tt, R(n)->value);
 		if(t == NULL){
-			printf("Type '%s' has not been defined\n", R(n).value);
+			printf("Type '%s' has not been defined\n", R(n)->value);
 			exit(1);
 		}
-		add_variable(scope, L(n).value, t);
+		add_variable(scope, L(n)->value, t);
 
 	}else if(n->type == TYPE_IDENT){
 		if(!find_variable(scope, n->value)){
@@ -46,8 +50,10 @@ void verify(Type_Table * tt, Scope *scope, Node *n){
 			exit(1);
 		}
 	}else if(n->type == TYPE_CALL_PARAMS){
-		for(int i = 0; i < n->nodes.len; i++){
-			verify(tt, n->scope, n->nodes.nodes + i);
+		Array_Iter at = make_array_iter(&n->nodes);
+		Node *node = NULL;
+		while((node = (Node *)next_item(&at)) != NULL){
+			verify(tt, n->scope, node);
 		}
 	}
 }
@@ -142,7 +148,7 @@ void emit_call(Code *code, Function f, Node *operator){
 	emit_instruction(code, INST_PUSH_R, 9, -1, -1);//Save frame pointer
 	emit_instruction(code, INST_MOV_R, 9, 8, -1);//Move stack pointer into frame pointer
 	Node *params = CHILD(operator, 1);
-	for (int i = 0;i < params->nodes.len; i++){
+	for (int i = 0;i < params->nodes.item_count; i++){
 		emit_operand(code, f, CHILD(params, i));
 	}
 	int call_location = lookup_label(code, CHILD(operator, 0)->value);
@@ -188,7 +194,7 @@ void emit_function(Code *code, Node *func){
 	//Deal with parameters, node code needs to be emitted as they will be pushed
 	//onto the stack by the caller.
 	Node *params = CHILD(func, 1);
-	for (int i = 0; i<params->nodes.len; i++){
+	for (int i = 0; i<params->nodes.item_count; i++){
 		Node *decl = CHILD(params, i);
 		
 		Parameter p;
@@ -201,7 +207,7 @@ void emit_function(Code *code, Node *func){
 	//Now we need to go through each expression in the block and emit the appropriate
 	//code. This will become more complex when I introduce control flow
 	Node* block = CHILD(func, 3);
-	for( int i = 0; i<block->nodes.len; i++){
+	for( int i = 0; i<block->nodes.item_count; i++){
 		Node *line = CHILD(block, i);
 		if (line->type == TYPE_DECL){
 			Parameter p;
@@ -251,7 +257,7 @@ void emit_function(Code *code, Node *func){
 
 void emit_functions(Code *code, Node *functions){
 	
-	for (int i = 0; i< functions->nodes.len; i++){
+	for (int i = 0; i< functions->nodes.item_count; i++){
 		emit_function(code, CHILD(functions, i));
 	}
 }
