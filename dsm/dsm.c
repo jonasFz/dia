@@ -17,6 +17,12 @@ const char *OP[OP_COUNT] ={
 	"PUSH_R",
 	"ADD_I",
 	"ADD_R",
+	"SUB_I",
+	"SUB_R",
+	"MUL_I",
+	"MUL_R",
+	"DIV_I",
+	"DIV_R",
 	"LOAD_R",
 	"LOAD_I",
 	"LOAD_RI",
@@ -142,8 +148,26 @@ void interpret(Interp *interp, Code *proc, unsigned int start){
 				interp->reg[i.a] = interp->reg[i.b] + i.c;
 				break;
 			case INST_ADD_R:
-				//printf("%d = %d + %d", interp->reg[i.a], interp->reg[i.b], interp->reg[i.c]);
 				interp->reg[i.a] = interp->reg[i.b] + interp->reg[i.c];
+				break;
+			case INST_SUB_I:
+				interp->reg[i.a] = interp->reg[i.b] - i.c;
+				break;
+			case INST_SUB_R:
+				interp->reg[i.a] = interp->reg[i.b] - interp->reg[i.c];
+				break;
+		
+			case INST_MUL_I:
+				interp->reg[i.a] = interp->reg[i.b] * i.c;
+				break;
+			case INST_MUL_R:
+				interp->reg[i.a] = interp->reg[i.b] * interp->reg[i.c];
+				break;
+			case INST_DIV_I:
+				interp->reg[i.a] = interp->reg[i.b] / i.c;
+				break;
+			case INST_DIV_R:
+				interp->reg[i.a] = interp->reg[i.b] / interp->reg[i.c];
 				break;
 			case INST_LOAD_R://Just does stack for the moment
 				interp->reg[i.a] = interp->stack[interp->reg[i.b]];

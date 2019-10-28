@@ -53,16 +53,11 @@ typedef struct Node Node;
 
 struct Node{
 	unsigned int type;
-
 	char *value;
-
 	int index;
 	int length;
-
 	unsigned int precedence;
-
 	Array nodes;
-
 	Scope *scope;
 };
 

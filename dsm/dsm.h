@@ -3,30 +3,36 @@
 
 #include "../array.h"
 
-#define INST_HALT	0
-#define INST_GOTO_I	1
-#define INST_GOTO_R	2
+#define INST_HALT		0
+#define INST_GOTO_I		1
+#define INST_GOTO_R		2
 #define INST_GOTO_RI	3
-#define INST_MOV_I	4
-#define INST_MOV_R	5
-#define INST_POP_R	6
-#define INST_POP	7
-#define INST_PUSH_I	8
-#define INST_PUSH_R	9
-#define INST_ADD_I	10
-#define INST_ADD_R	11
-#define INST_LOAD_R	12
-#define INST_LOAD_I	13
-#define INST_LOAD_RI	14
-#define INST_SAVE_R	15
-#define INST_SAVE_I	16
-#define INST_SAVE_RI	17
-#define INST_CALL_I	18
-#define INST_CALL_R	19
-#define INST_RET	20
+#define INST_MOV_I		4
+#define INST_MOV_R		5
+#define INST_POP_R		6
+#define INST_POP		7
+#define INST_PUSH_I		8
+#define INST_PUSH_R		9
+#define INST_ADD_I		10
+#define INST_ADD_R		11
+#define INST_SUB_I		12
+#define INST_SUB_R		13
+#define INST_MUL_I		14
+#define INST_MUL_R		15
+#define INST_DIV_I		16
+#define INST_DIV_R		17
+#define INST_LOAD_R		18
+#define INST_LOAD_I		19
+#define INST_LOAD_RI	20
+#define INST_SAVE_R		21
+#define INST_SAVE_I		22
+#define INST_SAVE_RI	23
+#define INST_CALL_I		24
+#define INST_CALL_R		25
+#define INST_RET		26
 
 
-#define OP_COUNT 21
+#define OP_COUNT 27
 
 #define R0	0
 #define R1	1

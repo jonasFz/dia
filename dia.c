@@ -172,6 +172,15 @@ void emit_operator(Code *code, Function f, Node *operator){
 	if(operator->value[0] == '+'){
 		emit_instruction(code, INST_ADD_R, 0, 0, 1);
 		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
+	}else if(operator->value[0] == '-'){
+		emit_instruction(code, INST_SUB_R, 0, 0, 1);
+		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
+	}else if(operator->value[0] == '*'){
+		emit_instruction(code, INST_MUL_R, 0, 0, 1);
+		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
+	}else if (operator->value[0] == '/'){
+		emit_instruction(code, INST_DIV_R, 0, 0, 1);
+		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
 	}else{
 		printf("operator '%s' hasn't yet been implemented\n", operator->value);
 	}
