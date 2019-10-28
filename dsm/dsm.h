@@ -57,7 +57,6 @@ typedef struct Interp{
 typedef struct Code{
 	Inst *code;
 	unsigned int length;
-
 	unsigned int cap;
 } Code;
 

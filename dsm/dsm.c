@@ -133,7 +133,7 @@ void interpret(Interp *interp, Code *proc, unsigned int start){
 				break;
 			case INST_SAVE_RI:
 				//interp->stack[interp->reg[i.a]]
-					break;
+				break;
 			case INST_CALL_I://Will have to figure out what to do as far as saving the last one
 				interp->reg[RET] = interp->reg[IS];
 				interp->reg[IS] = i.a;
@@ -142,7 +142,7 @@ void interpret(Interp *interp, Code *proc, unsigned int start){
 				interp->reg[RET] = interp->reg[IS];
 				interp->reg[IS] = interp->reg[i.a];
 				break;
-			case INST_RET:
+			case INST_RET: // I think this should probably handle clean up
 				interp->reg[IS] = interp->reg[RET];
 				break;
 			default:

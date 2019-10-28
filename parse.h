@@ -33,6 +33,9 @@
 #define ALPHA(c) ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
 #define NUM(c) (c >= '0' && c <= '9') 
 
+
+#define CHILD(n, i) (n->nodes.nodes + i) 
+
 const char *decode_type(unsigned int type);
 
 typedef struct Parser{

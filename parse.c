@@ -108,16 +108,16 @@ void print_indent(int indent){
 	}
 }
 
-void __print_node(Parser *p, Node *n, int indent){
+void __print_node(Parser *p, Node *n, int indent, int count){
 	print_indent(indent);
-	printf("%s:%s", decode_type(n->type), n->value);
+	printf("%d: %s:%s", count, decode_type(n->type), n->value);
 	/*for(int i = 0; i < n->length; i++){
 		printf("%c", p->src[n->index+i]);
 	}*/
 	if (n->nodes.len>0){
 		printf("[\n");
 		for (int i = 0; i < n->nodes.len; i++){
-			__print_node(p, &n->nodes.nodes[i], indent + 1);
+			__print_node(p, &n->nodes.nodes[i], indent + 1, i);
 		}
 		print_indent(indent);
 		printf("]\n");
@@ -127,7 +127,7 @@ void __print_node(Parser *p, Node *n, int indent){
 
 }
 void print_node(Parser *p, Node *n){
-	__print_node(p, n, 0);
+	__print_node(p, n, 0, 0);
 }
 
 /* Maybe this should be inlined, or a macro */

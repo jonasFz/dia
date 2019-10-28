@@ -11,6 +11,7 @@ typedef struct Array{
 
 Array make_array(int item_size);
 void add_item(Array *a, void *item);
+int pop_item(Array *a);
 
 typedef struct Array_Iter{
 	Array *array;

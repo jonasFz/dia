@@ -22,6 +22,15 @@ void add_item(Array *a, void *item){
 	a->item_count++;
 }
 
+//1 if popped, o if not
+int pop_item(Array *a){
+	if(a->item_count > 0){
+		a->item_count--;
+		return 1;
+	}
+	return 0;
+}
+
 Array_Iter make_array_iter(Array *a){
 	Array_Iter at;
 	at.array = a;
