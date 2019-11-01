@@ -31,6 +31,13 @@ int pop_item(Array *a){
 	return 0;
 }
 
+void* get_item(Array *a, unsigned index){
+	if(index > a->item_count){
+		return NULL;
+	}
+	return a->data + (a->item_size * index);
+}
+
 Array_Iter make_array_iter(Array *a){
 	Array_Iter at;
 	at.array = a;

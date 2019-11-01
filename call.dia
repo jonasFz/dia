@@ -1,0 +1,8 @@
+function test(var number u32) -> u32 {
+	var return u32;
+	return = number * number;
+}
+
+function main() -> void {
+	test(2, 2);
+}

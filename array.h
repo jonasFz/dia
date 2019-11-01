@@ -14,6 +14,7 @@ typedef struct Array{
 Array make_array(int item_size);
 void add_item(Array *a, void *item);
 int pop_item(Array *a);
+void* get_item(Array *a, unsigned int index);
 
 typedef struct Array_Iter{
 	Array *array;
@@ -24,5 +25,6 @@ Array_Iter make_array_iter(Array *a);
 
 int has_next_item(Array_Iter *at);
 void* next_item(Array_Iter *at);
+
 
 #endif

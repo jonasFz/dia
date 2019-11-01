@@ -54,6 +54,8 @@ Code make_code(){
 	return c;
 }
 
+
+/*
 void add_label(Code *code, char *label, int value){
 	Label l;
 	l.value = label;
@@ -73,6 +75,7 @@ int lookup_label(Code *code, char* label){
 	}
 	return -1;
 }
+*/
 
 void add_inst(Code *code, Inst inst){
 	if(code->length == code->cap){
@@ -89,7 +92,7 @@ void show_code(Code *code){
 	}
 }
 
-void interpret(Interp *interp, Code *proc, unsigned int start){
+void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 	
 	Inst *code = proc->code;
 	unsigned int length = proc->length;

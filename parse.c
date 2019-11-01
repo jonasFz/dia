@@ -394,6 +394,7 @@ Node* parse_params(Parser *p){
 			eat_spaces(p);	
 			append_node(n, parse_decl(p));
 			if(accept(p, ")")){
+				ignore_current(p);
 				break;
 			}
 			if(accept(p, ",")){
@@ -422,8 +423,8 @@ Node* parse_return_type(Parser *p){
 }
 
 Node* parse_function(Parser *p){
-	eat_spaces(p);
 	
+	eat_spaces(p);	
 	if(!accept(p, "function")){
 		printf("Expected a 'function' keyword\n");
 		p->state = STATE_ERROR;
@@ -443,7 +444,6 @@ Node* parse_function(Parser *p){
 	append_node(n, parse_params(p));
 	append_node(n, parse_return_type(p));
 	append_node(n, parse_block(p));
-
 	
 	return n;
 }
