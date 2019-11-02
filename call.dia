@@ -1,8 +1,12 @@
-function test(var number u32) -> u32 {
-	var return u32;
-	return = number * number;
+external function print(var value u32) -> void{
+	var return void;
 }
 
 function main() -> void {
-	test(2, 2);
+	print(test(6969));
+}
+
+function test(var number u32) -> u32 {
+	var return u32;
+	return = number * number;
 }

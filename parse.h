@@ -5,7 +5,7 @@
 #include "array.h"
 
 #define STATE_ERROR 	0
-#define STATE_DONE	1
+#define STATE_DONE		1
 #define STATE_PARSING	2
 
 
@@ -26,6 +26,8 @@
 #define TYPE_PARAM_LIST 	11
 #define TYPE_CALL			12
 #define TYPE_CALL_PARAMS	13
+
+#define FLAG_EXTERNAL (1<<0)
 
 #define L(n) ((Node *)INDEX(n->nodes, 0))
 #define R(n) ((Node *)INDEX(n->nodes, 1))
@@ -59,6 +61,8 @@ struct Node{
 	unsigned int precedence;
 	Array nodes;
 	Scope *scope;
+
+	unsigned int flags;
 };
 
 Parser make_parser(char *);

@@ -53,7 +53,6 @@ typedef struct Inst{
 	int a;
 	int b;
 	int c;
-
 } Inst;
 
 typedef struct Label{

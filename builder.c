@@ -45,6 +45,7 @@ void emit_instruction(Code *code, unsigned int op, int a, int b, int c){
 	Inst i = make_inst(op, a, b, c);
 	add_inst(code, i);
 }
+
 void emit_call(Code *code, Name_Table *nt, Function f, Node *operator);
 void emit_operator(Code *code,Name_Table *nt, Function f, Node *operator);
 void emit_operand(Code *code, Name_Table *nt, Function f, Node *operand){
@@ -73,7 +74,7 @@ void emit_call(Code *code, Name_Table *nt,  Function f, Node *operator){
 	for (int i = 0;i < params->nodes.item_count; i++){
 		emit_operand(code, nt, f, CHILD(params, i));
 	}
-	// int call_location = lookup_label(code, CHILD(operator, 0)->value);
+	// This is wrong, should be getting the location no the index
 	int call_location = lookup_name(nt, CHILD(operator, 0)->value);
 	if( call_location == -1){
 		printf("Trying to call function '%s' but it doesn't seem to exist yet\n", CHILD(operator, 0)->value);
@@ -181,7 +182,6 @@ void emit_function(Code *code, Name_Table *nt, Node *func){
 	if(offset != -1){
 		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
 	}
-
 	if( strcmp(CHILD(func, 0)->value, "main") == 0 ){
 		emit_instruction(code, INST_HALT, -1, -1, -1);
 	}else{
@@ -197,7 +197,7 @@ Name_Table make_name_table(){
 	return nt;
 }
 
-void register_name(Name_Table *nt, char * name){
+void register_name(Name_Table *nt, char * name, int is_external){
 	int length = strlen(name);
 	char *cpy = (char *)malloc(sizeof(char) * length+1);
 	strncpy(cpy, name, length);
@@ -206,6 +206,7 @@ void register_name(Name_Table *nt, char * name){
 	Row row;
 	row.name = cpy;
 	row.location = -1;
+	row.is_external = is_external;
 
 	add_item(&nt->names, (void *)&row);
 }
@@ -228,6 +229,7 @@ void set_location(Name_Table *nt, char *name, int location){
 	int index = lookup_name(nt, name);
 	if(index == -1){
 		printf("'%s' has not been defined in Name_Table, cannot set location %d\n", name, location);
+		return;
 	}
 	((Row *)get_item(&nt->names, index))->location = location;
 }
@@ -242,6 +244,12 @@ void print_name_table(Name_Table* nt){
 	}
 }
 
+int get_location_of_name(Name_Table *nt, char *name){
+	int index = lookup_name(nt, name);
+	if(index == -1) return -1;
+	return ((Row *)get_item(&nt->names, index))->location;
+}
+
 void build_code(Node *node, Code *code, Name_Table *nt){
 	if(node->type != TYPE_GLOBAL){
 		printf("Can only build code from a node of type GLOBAL\n");
@@ -253,7 +261,8 @@ void build_code(Node *node, Code *code, Name_Table *nt){
 	while((n = (Node *)next_item(&nodes)) != NULL){
 		if(n->type == TYPE_FUNCTION){
 			//Figure out where we want to check if the function already defined.
-			register_name(nt, CHILD(n, 0)->value);
+			int is_external = n->flags & FLAG_EXTERNAL;
+			register_name(nt, CHILD(n, 0)->value, is_external);
 		}else{
 			printf("Only handle functions at the top level currently\n");
 		}

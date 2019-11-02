@@ -115,7 +115,8 @@ int main(int argc, char **argv){
 
 
 	build_code(global, &code, &nt);
-	
+	show_code(&code);
+	printf("-----------------------");
 	int start = lookup_name(&nt, "main");
 	start = ((Row *)get_item(&nt.names, start))->location;
 	if(start == -1){
@@ -124,7 +125,6 @@ int main(int argc, char **argv){
 		printf("Main function found at instruction index:  %d\n", start);
 		Interp interp;
 		interpret(&interp, &code, &nt, start);
-		printf("%d\n", interp.stack[interp.reg[SP]]);
 	}
 
 	//emit_function(global->nodes.nodes);

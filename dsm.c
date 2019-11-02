@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "dsm.h"
+#include "lib.h"
 
 const char *OP[OP_COUNT] ={
 	"HALT",
@@ -93,7 +94,8 @@ void show_code(Code *code){
 }
 
 void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
-	
+	External *externals = get_externals();
+
 	Inst *code = proc->code;
 	unsigned int length = proc->length;
 
@@ -111,10 +113,11 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 			printf("Cannot do instruction at index %d, the code is only %d long\n", interp->reg[IS], length);
 			return;
 		}
+		
 
 		Inst i = code[interp->reg[IS]++];
 		//printf("SP=%d, FP=%d, RET=%d, IS=%d\n", interp->reg[SP], interp->reg[FP], interp->reg[RET], interp->reg[IS]);
-		//printf("%s %d %d %d\n", OP[i.inst], i.a, i.b, i.c);
+		//printf("%d: %s %d %d %d\n",interp->reg[IS]-1, OP[i.inst], i.a, i.b, i.c);
 
 		switch(i.inst){
 			case INST_HALT:
@@ -189,10 +192,17 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 				break;
 			case INST_SAVE_RI:
 				//interp->stack[interp->reg[i.a]]
+				printf("SAVE_RI NOT IMPLEMENTED");
 				break;
 			case INST_CALL_I://Will have to figure out what to do as far as saving the last one
 				interp->reg[RET] = interp->reg[IS];
-				interp->reg[IS] = i.a;
+				Row *r = (Row *)get_item(&nt->names, i.a);
+				if(r->is_external){
+					externals[r->location](interp);
+				}else{
+					interp->reg[IS] = r->location; 
+				}
+				//interp->reg[IS] = i.a;
 				break;
 			case INST_CALL_R:
 				interp->reg[RET] = interp->reg[IS];
@@ -212,6 +222,10 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 		printf("-- R0=%d R1=%d\n", interp->reg[R0], interp->reg[R1]);
 		*/
 
+		if((interp->reg[IS]) >= proc->length){
+		
+			printf("Instruction location %d is out of range of this code\n", interp->reg[IS]+1);
+		}
 	}
 }
 

@@ -77,6 +77,8 @@ Node* claim_type(Parser *p, unsigned int type){
 	Node *n = create_node(p, p->cur, p->off);
 	n->type = type;
 
+	n->flags = 0;
+
 	p->cur +=  p->off;
 	p->off = 0;
 
@@ -95,6 +97,9 @@ void print_indent(int indent){
 }
 
 void __print_node(Parser *p, Node *n, int indent, int count){
+	if(n->flags & FLAG_EXTERNAL){
+		printf("external ");
+	}
 	print_indent(indent);
 	printf("%d: %s:%s", count, decode_type(n->type), n->value);
 	/*for(int i = 0; i < n->length; i++){
@@ -423,7 +428,14 @@ Node* parse_return_type(Parser *p){
 }
 
 Node* parse_function(Parser *p){
-	
+	eat_spaces(p);
+
+	int is_external = 0;
+	if(accept(p, "external")){
+		ignore_current(p);
+		is_external = 1;
+	}
+
 	eat_spaces(p);	
 	if(!accept(p, "function")){
 		printf("Expected a 'function' keyword\n");
@@ -433,6 +445,9 @@ Node* parse_function(Parser *p){
 	ignore_current(p);
 
 	Node *n = claim_type(p, TYPE_FUNCTION);
+	if( is_external){
+		n->flags |= FLAG_EXTERNAL;
+	}
 
 	eat_spaces(p);
 
