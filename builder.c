@@ -17,8 +17,8 @@ typedef struct Function{
 	int offset;
 } Function;
 
-int offset_for_param(Function function, char *name){
-	Array_Iter at = make_array_iter(&function.params);
+int offset_for_param(Function *function, char *name){
+	Array_Iter at = make_array_iter(&function->params);
 	Parameter *p = (Parameter *)next_item(&at);
 	while(p != NULL){
 		if(strcmp(p->name, name) == 0){
@@ -46,9 +46,9 @@ void emit_instruction(Code *code, unsigned int op, int a, int b, int c){
 	add_inst(code, i);
 }
 
-void emit_call(Code *code, Name_Table *nt, Function f, Node *operator);
-void emit_operator(Code *code,Name_Table *nt, Function f, Node *operator);
-void emit_operand(Code *code, Name_Table *nt, Function f, Node *operand){
+void emit_call(Code *code, Name_Table *nt, Function *f, Node *operator);
+void emit_operator(Code *code,Name_Table *nt, Function *f, Node *operator);
+void emit_operand(Code *code, Name_Table *nt, Function *f, Node *operand){
 	//printf("Operand start\n");
 	if(operand->type == TYPE_IDENT){
 		int offset = offset_for_param(f, operand->value);
@@ -67,15 +67,14 @@ void emit_operand(Code *code, Name_Table *nt, Function f, Node *operand){
 	//printf("Operand stop\n");
 }
 
-void emit_call(Code *code, Name_Table *nt,  Function f, Node *operator){
+void emit_call(Code *code, Name_Table *nt, Function *f, Node *operator){
 	emit_instruction(code, INST_PUSH_R, 9, -1, -1);//Save frame pointer
 	emit_instruction(code, INST_MOV_R, 9, 8, -1);//Move stack pointer into frame pointer
 	Node *params = CHILD(operator, 1);
 	for (int i = 0;i < params->nodes.item_count; i++){
 		emit_operand(code, nt, f, CHILD(params, i));
 	}
-	// This is wrong, should be getting the location no the index
-	int call_location = lookup_name(nt, CHILD(operator, 0)->value);
+	int call_location = index_of_name(nt, CHILD(operator, 0)->value);
 	if( call_location == -1){
 		printf("Trying to call function '%s' but it doesn't seem to exist yet\n", CHILD(operator, 0)->value);
 	}
@@ -85,7 +84,7 @@ void emit_call(Code *code, Name_Table *nt,  Function f, Node *operator){
 //This function is very stupid, every operand is pushed onto the stack but will
 //just be popped right off again, could optimize later or just generate smarter code
 //The goal currently is just to get any code running then I'll see about being smart
-void emit_operator(Code *code, Name_Table *nt, Function f, Node *operator){
+void emit_operator(Code *code, Name_Table *nt, Function *f, Node *operator){
 	//printf("Operator start\n");
 	Node *l = CHILD(operator, 0);
 	Node *r = CHILD(operator, 1);
@@ -111,6 +110,75 @@ void emit_operator(Code *code, Name_Table *nt, Function f, Node *operator){
 	//printf("Operator stop\n");
 }
 
+void emit_return(Code *code, Function *f){
+	// The block will leave a value on the stack, here we pop it off
+	// so we can put it at the bottom of the stack later as the return value
+	// TYPE will need to figure out how to return big things.
+	emit_instruction(code, INST_POP_R, 0, -1, -1);
+
+	//Clean up the stack before returing
+	int param_count = f->params.item_count;
+	//Maybe we should make stack math seperate?
+	emit_instruction(code, INST_SUB_I, 8, 8, param_count);
+
+	emit_instruction(code, INST_POP_R, 9, -1, -1);
+
+	//The return value we saved earlier now pushed back on
+	emit_instruction(code, INST_PUSH_R, 0, -1, -1);
+
+	//Kind of hacky and probably slow
+	//Will probably make the code entry point transparent and then 
+	//make main just a regular function.
+	//Put a generic bit of code at the beginning of every program that
+	//just calls main.
+	if( strcmp(f->name, "main") == 0 ){
+		emit_instruction(code, INST_HALT, -1, -1, -1);
+	}else{
+		emit_instruction(code, INST_RET, -1, -1, -1);
+	}
+}
+
+void emit_block(Code *code, Name_Table *nt, Function *f,  Node *block){
+	for (int i = 0; i<block->nodes.item_count; i++){
+		Node *line = CHILD(block, i);
+		if (line->type == TYPE_DECL){
+			Parameter p;
+			p.name = CHILD(line, 0)->value;
+			p.offset = f->offset++;
+
+			add_item(&f->params, (void *)&p);
+
+			emit_instruction(code, INST_PUSH_I, 0, -1, -1);
+		}else if(line->type == TYPE_OPERATOR){
+			//Need to do a better job of checking this
+			if (line->value[0] == '='){
+				emit_operand(code, nt, f, CHILD(line, 1));
+
+				int offset = offset_for_param(f, CHILD(line, 0)->value);
+				//printf("Assignment start\n");
+				emit_instruction(code, INST_ADD_I, 0, 9, offset); 
+				emit_instruction(code, INST_POP_R, 1, -1, -1);
+				emit_instruction(code, INST_SAVE_R, 0, 1, -1);	
+				//printf("Assignment stop\n");
+			}
+		}else if (line->type == TYPE_CALL){
+			emit_operand(code, nt, f, line);
+		}else if (line->type == TYPE_IF){
+			printf("If statement\n");
+		}else if (line->type == TYPE_RETURN){
+			Node *child = CHILD(line, 0);
+			if(child->type == TYPE_OPERATOR){
+				emit_operator(code, nt, f, child);
+			}else{
+				emit_operand(code, nt, f, child);
+			}
+			emit_return(code, f);
+		}else{
+			printf("Not really sure what to do with node of value '%s'\n", line->value);
+		}
+	}
+}
+
 void emit_function(Code *code, Name_Table *nt, Node *func){
 	//printf("Function start\n");
 
@@ -120,7 +188,11 @@ void emit_function(Code *code, Name_Table *nt, Node *func){
 	f.name = CHILD(func, 0)->value;
 	f.params = make_array(sizeof(Parameter));
 
-	set_location(nt, f.name, code->length);
+	//If the function is external we don't want to patch the location
+	//as they have fixed 'locations' which are just array indices
+	if(!lookup_name(nt, f.name)->is_external){
+		set_location(nt, f.name, code->length);
+	}
 
 	//add_label(code, f.name, code->length);
 
@@ -138,55 +210,13 @@ void emit_function(Code *code, Name_Table *nt, Node *func){
 
 		add_item(&f.params, (void *)&p);
 	}
-	
 	//Now we need to go through each expression in the block and emit the appropriate
 	//code. This will become more complex when I introduce control flow
 	Node* block = CHILD(func, 3);
-	for (int i = 0; i<block->nodes.item_count; i++){
-		Node *line = CHILD(block, i);
-		if (line->type == TYPE_DECL){
-			Parameter p;
-			p.name = CHILD(line, 0)->value;
-			p.offset = f.offset++;
-
-			add_item(&f.params, (void *)&p);
-
-			emit_instruction(code, INST_PUSH_I, 0, -1, -1);
-		}else if(line->type == TYPE_OPERATOR){
-			//Need to do a better job of checking this
-			if (line->value[0] == '='){
-				emit_operand(code, nt, f, CHILD(line, 1));
-
-				int offset = offset_for_param(f, CHILD(line, 0)->value);
-				//printf("Assignment start\n");
-				emit_instruction(code, INST_ADD_I, 0, 9, offset); 
-				emit_instruction(code, INST_POP_R, 1, -1, -1);
-				emit_instruction(code, INST_SAVE_R, 0, 1, -1);	
-				//printf("Assignment stop\n");
-			}
-		}else if (line->type == TYPE_CALL){
-			emit_operand(code, nt, f, line);
-		}else{
-			printf("Not really sure what to do with node of value '%s'\n", line->value);
-		}
-	}
-	int offset = offset_for_param(f, "return");
-	if(offset != -1){
-		emit_instruction(code, INST_LOAD_RI, 0, 9, offset);
-	}
-	//Should actually just be a sub from SP
-	while(pop_item(&f.params)){
-		emit_instruction(code, INST_POP, -1, -1, -1);
-	}
-	emit_instruction(code, INST_POP_R, 9, -1, -1);
-	if(offset != -1){
-		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
-	}
-	if( strcmp(CHILD(func, 0)->value, "main") == 0 ){
-		emit_instruction(code, INST_HALT, -1, -1, -1);
-	}else{
-		emit_instruction(code, INST_RET, -1, -1, -1);
-	}
+	emit_block(code, nt, &f, block);
+	//The block is expected to generate the return for a function
+	//Will later have a stage that validates the structure and inserts
+	//a return if needed.
 }
 
 
@@ -211,7 +241,21 @@ void register_name(Name_Table *nt, char * name, int is_external){
 	add_item(&nt->names, (void *)&row);
 }
 
-int lookup_name(Name_Table *nt, char *name){
+Row* lookup_name(Name_Table *nt, char *name){
+	Array_Iter at = make_array_iter(&nt->names);
+	Row *current = NULL;
+
+	int index = 0;
+	while((current = (Row *)next_item(&at)) != NULL){
+		if(strcmp(current->name, name) == 0){
+			return current;
+		}
+		index++;
+	}
+	return NULL;
+}
+
+int index_of_name(Name_Table *nt, char *name){
 	Array_Iter at = make_array_iter(&nt->names);
 	Row *current = NULL;
 
@@ -222,16 +266,16 @@ int lookup_name(Name_Table *nt, char *name){
 		}
 		index++;
 	}
-	return -1;
+	return index;
 }
 
 void set_location(Name_Table *nt, char *name, int location){
-	int index = lookup_name(nt, name);
-	if(index == -1){
+	Row *r = NULL;
+	if((r = lookup_name(nt, name)) == NULL){
 		printf("'%s' has not been defined in Name_Table, cannot set location %d\n", name, location);
 		return;
 	}
-	((Row *)get_item(&nt->names, index))->location = location;
+	r->location = location;
 }
 
 void print_name_table(Name_Table* nt){
@@ -245,9 +289,9 @@ void print_name_table(Name_Table* nt){
 }
 
 int get_location_of_name(Name_Table *nt, char *name){
-	int index = lookup_name(nt, name);
-	if(index == -1) return -1;
-	return ((Row *)get_item(&nt->names, index))->location;
+	Row *r = lookup_name(nt, name);
+	if(r == NULL) return -1;
+	return r->location;
 }
 
 void build_code(Node *node, Code *code, Name_Table *nt){

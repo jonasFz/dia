@@ -117,14 +117,13 @@ int main(int argc, char **argv){
 	build_code(global, &code, &nt);
 	show_code(&code);
 	printf("-----------------------");
-	int start = lookup_name(&nt, "main");
-	start = ((Row *)get_item(&nt.names, start))->location;
-	if(start == -1){
+	Row* r = lookup_name(&nt, "main");
+	if(r == NULL){
 		printf("Your program needs a main function\n");
 	}else{
-		printf("Main function found at instruction index:  %d\n", start);
+		printf("Main function found at instruction index:  %d\n", r->location);
 		Interp interp;
-		interpret(&interp, &code, &nt, start);
+		interpret(&interp, &code, &nt, r->location);
 	}
 
 	//emit_function(global->nodes.nodes);

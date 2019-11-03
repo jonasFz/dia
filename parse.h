@@ -26,6 +26,8 @@
 #define TYPE_PARAM_LIST 	11
 #define TYPE_CALL			12
 #define TYPE_CALL_PARAMS	13
+#define TYPE_IF				14
+#define TYPE_RETURN			15
 
 #define FLAG_EXTERNAL (1<<0)
 

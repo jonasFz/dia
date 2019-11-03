@@ -94,6 +94,7 @@ void show_code(Code *code){
 }
 
 void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
+	register_externals(nt);
 	External *externals = get_externals();
 
 	Inst *code = proc->code;
@@ -198,6 +199,7 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 				interp->reg[RET] = interp->reg[IS];
 				Row *r = (Row *)get_item(&nt->names, i.a);
 				if(r->is_external){
+					printf("Calling external function, location %d\n", r->location);
 					externals[r->location](interp);
 				}else{
 					interp->reg[IS] = r->location; 

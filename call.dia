@@ -1,12 +1,10 @@
-external function print(var value u32) -> void{
-	var return void;
+function add(var a u32) -> u32 {
+	return a + a;
 }
 
 function main() -> void {
-	print(test(6969));
+	print(add(1));
+	return;
 }
 
-function test(var number u32) -> u32 {
-	var return u32;
-	return = number * number;
-}
+external function print(var a u32) -> u32 {}

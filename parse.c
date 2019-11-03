@@ -19,7 +19,9 @@ const char *TYPES[] = {
 	"global",
 	"parameters",
 	"call",
-	"call_parameters"
+	"call_parameters",
+	"if_statement",
+	"return"
 };
 
 /*This is a dangerous function*/
@@ -30,6 +32,13 @@ const char *decode_type(unsigned int type){
 // CAUTION that *n down there might have consequences.
 void append_node(Node *p, Node *n){
 	add_item(&p->nodes, (void *)n);
+}
+
+void set_node_value(Node *n, char * value){
+	int length = strlen(value);
+	n->value = (char *)malloc(sizeof(char) * length+1);
+	memcpy((void *)n->value, (void *)value, sizeof(char)*length);
+	n->value[length] = '\0';
 }
 
 Node* create_node(Parser *p, int index, int length){
@@ -344,7 +353,12 @@ Node* parse_expression(Parser *p){
 		append_node(top, r);
 		nstack[nsp++] = top;
 	}
-	if (nsp != 1){
+	if(nsp == 0){
+		ignore_current(p);
+		Node *n = claim_type(p, TYPE_INTEGER);
+		set_node_value(n, "0");
+		return n;
+	}else if (nsp != 1){
 		print_node(NULL, nstack[nsp-1]);
 		printf("Strange number of things left on stack while parsing expression %d\n", nsp);
 		fail_hard();
@@ -367,14 +381,46 @@ Node* parse_block(Parser *p){
 	eat_spaces(p);
 
 	while(!accept(p, "}")){
-		append_node(block, parse_expression(p));
-		eat_spaces(p);
-		if(!accept(p, ";")){
-			printf("Expression should end with a ';'\n");
-			p->state = STATE_ERROR;
-			fail_hard();
+		if (accept(p, "if")){
+			ignore_current(p);
+			
+			Node *if_statement = claim_type(p, TYPE_IF); 
+			
+			eat_spaces(p);
+			append_node(if_statement, parse_expression(p));
+			eat_spaces(p);
+			append_node(if_statement, parse_block(p));
+
+			append_node(block, if_statement);
+		}else if(accept(p, "return")){
+			ignore_current(p);
+			Node *ret = claim_type(p, TYPE_RETURN);
+			eat_spaces(p);
+
+			Node *expression = parse_expression(p);
+
+			append_node(ret, expression);
+			eat_spaces(p);
+			
+			if(!accept(p, ";")){
+				printf("Return should have a semicolon\n");
+				p->state = STATE_ERROR;
+				fail_hard();
+			}
+			ignore_current(p);
+
+			append_node(block, ret);
+		}else{
+			// Probably want to be more cautios here
+			append_node(block, parse_expression(p));
+			eat_spaces(p);
+			if(!accept(p, ";")){
+				printf("Expression should end with a ';'\n");
+				p->state = STATE_ERROR;
+				fail_hard();
+			}
+			ignore_current(p);
 		}
-		ignore_current(p);
 		eat_spaces(p);
 	}
 	ignore_current(p);
