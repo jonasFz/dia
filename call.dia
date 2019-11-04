@@ -1,10 +1,13 @@
-function add(var a u32) -> u32 {
-	return a + a;
+function factorial(var number u32) -> u32{
+	if number == 1{
+		return 1;
+	}
+	return factorial(number - 1) * number;
 }
 
 function main() -> void {
-	print(add(1));
+	print(factorial(4));
 	return;
 }
 
-external function print(var a u32) -> u32 {}
+external function print(var a u32) -> void {return;}

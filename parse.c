@@ -182,7 +182,12 @@ int accept_digit(Parser *p){
 int accept_operator(Parser *p, unsigned int *precedence){
 	if (CUR(p) == '='){
 		p->off++;
-		*precedence = 16;
+		if(CUR(p) == '='){
+			p->off++;
+			*precedence = 7;
+		}else{
+			*precedence = 16;
+		}
 	}else if (CUR(p) == '*'|| CUR(p) == '/'){
 		p->off++;
 		*precedence = 5;

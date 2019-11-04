@@ -15,6 +15,9 @@ typedef struct Function{
 	Array params;
 
 	int offset;
+
+	int block_start;
+	int block_end;
 } Function;
 
 int offset_for_param(Function *function, char *name){
@@ -68,17 +71,41 @@ void emit_operand(Code *code, Name_Table *nt, Function *f, Node *operand){
 }
 
 void emit_call(Code *code, Name_Table *nt, Function *f, Node *operator){
-	emit_instruction(code, INST_PUSH_R, 9, -1, -1);//Save frame pointer
-	emit_instruction(code, INST_MOV_R, 9, 8, -1);//Move stack pointer into frame pointer
+	int is_external_call = lookup_name(nt, CHILD(operator, 0)->value)->is_external;
+	
+	if(!is_external_call){
+
+
+		emit_instruction(code, INST_PUSH_R, RET, -1, -1);
+		emit_instruction(code, INST_PUSH_R, 9, -1, -1);//Save frame pointer
+
+		//Save return register
+		//emit_instruction(code, INST_PUSH_R, RET, -1, -1);	
+		//Save the stack pointer in temporary register
+		//We still need the frame pointer to push arguments
+		//After that we will set the frame pointer
+		emit_instruction(code, INST_MOV_R, R2, 8, -1);//Move stack pointer into temporary register
+	}
+	
 	Node *params = CHILD(operator, 1);
 	for (int i = 0;i < params->nodes.item_count; i++){
+		//Place needed values on the stack as the call arguments
 		emit_operand(code, nt, f, CHILD(params, i));
 	}
-	int call_location = index_of_name(nt, CHILD(operator, 0)->value);
-	if( call_location == -1){
-		printf("Trying to call function '%s' but it doesn't seem to exist yet\n", CHILD(operator, 0)->value);
+
+	if(!is_external_call){
+		int call_location = index_of_name(nt, CHILD(operator, 0)->value);
+		if( call_location == -1){
+			printf("Trying to call function '%s' but it doesn't seem to exist yet\n", CHILD(operator, 0)->value);
+		}
+	
+		emit_instruction(code, INST_MOV_R, FP, R2, -1);
+		emit_instruction(code, INST_CALL_I, call_location, -1, -1);
+		emit_instruction(code, INST_SWAP_STACK, -1, -1, -1);
+		emit_instruction(code, INST_POP_R, RET, -1, -1);
+	}else{	
+		emit_instruction(code, INST_EXT_CALL_I, index_of_name(nt, CHILD(operator, 0)->value), -1, -1);
 	}
-	emit_instruction(code, INST_CALL_I, call_location, -1, -1);
 }
 
 //This function is very stupid, every operand is pushed onto the stack but will
@@ -90,9 +117,20 @@ void emit_operator(Code *code, Name_Table *nt, Function *f, Node *operator){
 	Node *r = CHILD(operator, 1);
 	emit_operand(code, nt,  f, l);
 	emit_operand(code, nt,  f, r);
-	emit_instruction(code, INST_POP_R, 0, -1, -1);
 	emit_instruction(code, INST_POP_R, 1, -1, -1);
-	if(operator->value[0] == '+'){
+	emit_instruction(code, INST_POP_R, 0, -1, -1);
+	
+	if(strcmp(operator->value, "==") == 0){
+		printf("Emitting equal\n");
+		emit_instruction(code, INST_SUB_R, 0, 0, 1);
+		emit_instruction(code, INST_CMP_I, 0, 0, -1);
+		emit_instruction(code, INST_JUMP_NEQL, code->length+3, -1, -1); //Need it to jump to after the goto
+		
+		emit_instruction(code, INST_PUSH_I, 1, -1, -1);
+		emit_instruction(code, INST_GOTO_I, code->length+2, -1, -1); //Having trouble figuring out this jump, should jump to AFTER the next instruction
+		emit_instruction(code, INST_PUSH_I, 0, -1, -1);
+
+	}else if(operator->value[0] == '+'){
 		emit_instruction(code, INST_ADD_R, 0, 0, 1);
 		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
 	}else if(operator->value[0] == '-'){
@@ -111,34 +149,54 @@ void emit_operator(Code *code, Name_Table *nt, Function *f, Node *operator){
 }
 
 void emit_return(Code *code, Function *f){
+	
 	// The block will leave a value on the stack, here we pop it off
 	// so we can put it at the bottom of the stack later as the return value
 	// TYPE will need to figure out how to return big things.
 	emit_instruction(code, INST_POP_R, 0, -1, -1);
-
+	
 	//Clean up the stack before returing
-	int param_count = f->params.item_count;
-	//Maybe we should make stack math seperate?
-	emit_instruction(code, INST_SUB_I, 8, 8, param_count);
+	int param_count = f->params.item_count;	
+	emit_instruction(code, INST_SUB_I, SP, SP, param_count);
 
-	emit_instruction(code, INST_POP_R, 9, -1, -1);
-
-	//The return value we saved earlier now pushed back on
-	emit_instruction(code, INST_PUSH_R, 0, -1, -1);
-
-	//Kind of hacky and probably slow
-	//Will probably make the code entry point transparent and then 
-	//make main just a regular function.
-	//Put a generic bit of code at the beginning of every program that
-	//just calls main.
-	if( strcmp(f->name, "main") == 0 ){
+	//Restore the old frame pointer for the calling function
+	if( strcmp(f->name, "main") != 0){
+		emit_instruction(code, INST_POP_R, FP, -1, -1);
+		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
+	}
+	if(strcmp(f->name, "main") == 0){
 		emit_instruction(code, INST_HALT, -1, -1, -1);
 	}else{
 		emit_instruction(code, INST_RET, -1, -1, -1);
 	}
+
+}
+
+void emit_expression(Code *code, Name_Table *nt, Function *f, Node *child){
+	if(child->type == TYPE_OPERATOR){
+		emit_operator(code, nt, f, child);
+	}else{
+		emit_operand(code, nt, f, child);
+	}
+}
+
+void emit_block(Code *code, Name_Table *nt, Function *f, Node *block);
+void emit_if_block(Code *code, Name_Table *nt, Function *f, Node *block){
+	Node *expression = CHILD(block, 0);
+	emit_expression(code, nt, f, expression);
+	emit_instruction(code, INST_POP_R, R0, -1, -1);
+	emit_instruction(code, INST_CMP_I, R0, 1, -1);
+	// First reserve space for the jump instruction
+	emit_instruction(code, INST_JUMP_NEQL, -1, -1, -1);	
+	// Then emit_block
+	Node *b = CHILD(block, 1);
+	emit_block(code, nt, f, b);
+	//Now patch the jump we made to jump to end of block
+	code->code[f->block_start-1].a = f->block_end;
 }
 
 void emit_block(Code *code, Name_Table *nt, Function *f,  Node *block){
+	f->block_start = code->length;
 	for (int i = 0; i<block->nodes.item_count; i++){
 		Node *line = CHILD(block, i);
 		if (line->type == TYPE_DECL){
@@ -151,32 +209,45 @@ void emit_block(Code *code, Name_Table *nt, Function *f,  Node *block){
 			emit_instruction(code, INST_PUSH_I, 0, -1, -1);
 		}else if(line->type == TYPE_OPERATOR){
 			//Need to do a better job of checking this
-			if (line->value[0] == '='){
+			if (strcmp(line->value, "=") == 0){
 				emit_operand(code, nt, f, CHILD(line, 1));
 
 				int offset = offset_for_param(f, CHILD(line, 0)->value);
-				//printf("Assignment start\n");
+
+				//Seems backwards
 				emit_instruction(code, INST_ADD_I, 0, 9, offset); 
 				emit_instruction(code, INST_POP_R, 1, -1, -1);
 				emit_instruction(code, INST_SAVE_R, 0, 1, -1);	
-				//printf("Assignment stop\n");
 			}
 		}else if (line->type == TYPE_CALL){
 			emit_operand(code, nt, f, line);
+			//We aren't doing anything with the value so lets get rid of it
+			emit_instruction(code, INST_POP, -1, -1, -1);
 		}else if (line->type == TYPE_IF){
-			printf("If statement\n");
+			emit_if_block(code, nt, f, line);
 		}else if (line->type == TYPE_RETURN){
 			Node *child = CHILD(line, 0);
-			if(child->type == TYPE_OPERATOR){
-				emit_operator(code, nt, f, child);
-			}else{
-				emit_operand(code, nt, f, child);
-			}
+			emit_expression(code, nt, f, child);
 			emit_return(code, f);
 		}else{
 			printf("Not really sure what to do with node of value '%s'\n", line->value);
 		}
 	}
+	f->block_end = code->length;
+	printf("Block from %d to %d\n", f->block_start, f->block_end);
+
+}
+
+void show_function(Function *f){
+	printf("Function: %s[\n", f->name);
+
+	Array_Iter at = make_array_iter(&f->params);
+	Parameter *p = NULL;
+
+	while((p = (Parameter *)next_item(&at)) != NULL){
+		printf("	%s %d\n", p->name, p->offset);
+	}
+	printf("]\n");
 }
 
 void emit_function(Code *code, Name_Table *nt, Node *func){
@@ -196,6 +267,9 @@ void emit_function(Code *code, Name_Table *nt, Node *func){
 
 	//add_label(code, f.name, code->length);
 
+	//Main tries to pop something off the stack at the end
+	//but nothing called it, so there will be nothing
+	//so I push a dummy onto the stack for it to pop later without dying
 	printf("Emitting code for function '%s'\n", f.name);
 
 	//Deal with parameters, node code needs to be emitted as they will be pushed
@@ -217,6 +291,8 @@ void emit_function(Code *code, Name_Table *nt, Node *func){
 	//The block is expected to generate the return for a function
 	//Will later have a stage that validates the structure and inserts
 	//a return if needed.
+
+	show_function(&f);
 }
 
 

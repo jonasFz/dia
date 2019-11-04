@@ -32,7 +32,13 @@ const char *OP[OP_COUNT] ={
 	"SAVE_RI",
 	"CALL_I",
 	"CALL_R",
-	"RET"
+	"CALL_EXT_I",
+	"RET",
+	"CMP_I",
+	"JUMP_EQL",
+	"JUMP_NEQL",
+	"NOT",
+	"SWP_STACK"
 };
 
 Inst make_inst(unsigned int inst, int a, int b, int c){
@@ -54,29 +60,6 @@ Code make_code(){
 
 	return c;
 }
-
-
-/*
-void add_label(Code *code, char *label, int value){
-	Label l;
-	l.value = label;
-	l.location = value;
-
-	add_item(&code->labels, &l);
-}
-
-int lookup_label(Code *code, char* label){
-	Array_Iter at = make_array_iter(&code->labels);
-	Label *l = (Label *)next_item(&at);
-	while(l != NULL){
-		if(strcmp(l->value, label) == 0){
-			return l->location;
-		}
-		l = (Label *) next_item(&at);
-	}
-	return -1;
-}
-*/
 
 void add_inst(Code *code, Inst inst){
 	if(code->length == code->cap){
@@ -107,6 +90,11 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 
 	interp->stack_length = 512;
 
+	for(int i = 0; i < interp->stack_length; i++){
+		interp->stack[i] = 0;
+		//printf("stack[%d] = %d\n", i, interp->stack[i]);
+	}
+
 
 	int running = 1;
 	while(running){
@@ -114,11 +102,10 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 			printf("Cannot do instruction at index %d, the code is only %d long\n", interp->reg[IS], length);
 			return;
 		}
-		
 
 		Inst i = code[interp->reg[IS]++];
 		//printf("SP=%d, FP=%d, RET=%d, IS=%d\n", interp->reg[SP], interp->reg[FP], interp->reg[RET], interp->reg[IS]);
-		//printf("%d: %s %d %d %d\n",interp->reg[IS]-1, OP[i.inst], i.a, i.b, i.c);
+		//printf("%2d: %10s %2d %2d %2d :: ",interp->reg[IS]-1, OP[i.inst], i.a, i.b, i.c);
 
 		switch(i.inst){
 			case INST_HALT:
@@ -163,11 +150,11 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 			case INST_SUB_R:
 				interp->reg[i.a] = interp->reg[i.b] - interp->reg[i.c];
 				break;
-		
 			case INST_MUL_I:
 				interp->reg[i.a] = interp->reg[i.b] * i.c;
 				break;
 			case INST_MUL_R:
+				printf("Multipling %d * %d\n", interp->reg[i.b], interp->reg[i.c]);
 				interp->reg[i.a] = interp->reg[i.b] * interp->reg[i.c];
 				break;
 			case INST_DIV_I:
@@ -192,40 +179,68 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 				interp->stack[interp->reg[i.a]] = i.b;
 				break;
 			case INST_SAVE_RI:
-				//interp->stack[interp->reg[i.a]]
 				printf("SAVE_RI NOT IMPLEMENTED");
 				break;
-			case INST_CALL_I://Will have to figure out what to do as far as saving the last one
+			case INST_CALL_I:
 				interp->reg[RET] = interp->reg[IS];
-				Row *r = (Row *)get_item(&nt->names, i.a);
-				if(r->is_external){
-					printf("Calling external function, location %d\n", r->location);
-					externals[r->location](interp);
-				}else{
-					interp->reg[IS] = r->location; 
-				}
-				//interp->reg[IS] = i.a;
+				interp->reg[IS] = ((Row *)get_item(&nt->names, i.a))->location; 
 				break;
 			case INST_CALL_R:
 				interp->reg[RET] = interp->reg[IS];
 				interp->reg[IS] = interp->reg[i.a];
 				break;
+			case INST_EXT_CALL_I:
+				externals[((Row *)get_item(&nt->names, i.a))->location](interp);
+				break;
 			case INST_RET: // I think this should probably handle clean up
 				interp->reg[IS] = interp->reg[RET];
+				break;
+			case INST_CMP_I:
+			//	printf("Comparing %d to %d\n", interp->reg[i.a], i.b);
+				if(interp->reg[i.a] == i.b){
+					interp->cmp = CMP_E;
+				}else if(interp->reg[i.a] < i.b){
+					interp->cmp = CMP_L;
+				}else{
+					interp->cmp = CMP_G;
+				}
+				break;
+			case INST_JUMP_EQL:
+				if(interp->cmp == CMP_E){
+					interp->reg[IS] = i.a;
+				}
+				break;
+			case INST_JUMP_NEQL:
+				if(interp->cmp != CMP_E){
+					interp->reg[IS] = i.a;
+				}
+				break;
+			case INST_NOT:
+				interp->reg[i.a] = !interp->reg[i.a];
+				break;
+			case INST_SWAP_STACK:
+				interp->stack[interp->reg[SP]] = interp->stack[interp->reg[SP]-2];
+				interp->stack[interp->reg[SP]-2] = interp->stack[interp->reg[SP]-1];
+				interp->stack[interp->reg[SP]-1] = interp->stack[interp->reg[SP]];
 				break;
 			default:
 				printf("%d is not an opcode that we understand\n", interp->reg[IS]);
 				running = 0;
 		}
-		/*printf("~");
-		for( int i = 0;i < interp->reg[SP]; i++){
-			printf("%d|", interp->stack[i]);
-		}
-		printf("-- R0=%d R1=%d\n", interp->reg[R0], interp->reg[R1]);
-		*/
-
-		if((interp->reg[IS]) >= proc->length){
 		
+		if(interp->reg[SP] <0 || interp->reg[SP] >= interp->stack_length){
+			printf("Bad stack value, %d is not in the range %d to %d\n", interp->reg[SP], 0, interp->stack_length);
+			exit(1);
+		}
+/*		printf("(R0=%2d, R1=%2d, R2=%2d, RET=%2d) ", interp->reg[R0], interp->reg[R1], interp->reg[R2], interp->reg[RET]);
+		for(int i = 0; i < interp->reg[SP]; i++){
+			printf("%d-", interp->stack[i]);
+		}
+		printf("\n");
+
+		fgetc(stdin);
+*/
+		if((interp->reg[IS]) >= proc->length){		
 			printf("Instruction location %d is out of range of this code\n", interp->reg[IS]+1);
 		}
 	}
