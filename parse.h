@@ -1,7 +1,6 @@
 #ifndef _PARSE_H
 #define _PARSE_H
 
-#include "scope.h"
 #include "array.h"
 
 #define STATE_ERROR 	0
@@ -62,7 +61,6 @@ struct Node{
 	int length;
 	unsigned int precedence;
 	Array nodes;
-	Scope *scope;
 
 	unsigned int flags;
 };

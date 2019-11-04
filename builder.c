@@ -52,11 +52,10 @@ void emit_instruction(Code *code, unsigned int op, int a, int b, int c){
 void emit_call(Code *code, Name_Table *nt, Function *f, Node *operator);
 void emit_operator(Code *code,Name_Table *nt, Function *f, Node *operator);
 void emit_operand(Code *code, Name_Table *nt, Function *f, Node *operand){
-	//printf("Operand start\n");
 	if(operand->type == TYPE_IDENT){
 		int offset = offset_for_param(f, operand->value);
-		emit_instruction(code, INST_LOAD_RI, 0, 9, offset);
-		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
+		emit_instruction(code, INST_LOAD_RI, R0, FP, offset);
+		emit_instruction(code, INST_PUSH_R, R0, -1, -1);
 	}else if (operand->type == TYPE_OPERATOR){
 		emit_operator(code, nt, f, operand);
 	}else if( operand->type == TYPE_CALL){
@@ -65,40 +64,34 @@ void emit_operand(Code *code, Name_Table *nt, Function *f, Node *operand){
 		int val = atoi(operand->value);
 		emit_instruction(code, INST_PUSH_I, val, -1, -1);
 	}else{
-		printf("TODO: only identifier operands are currently implemented\n");
+		printf("%d is not a type of operand we handle\n", operand->type);
 	}
-	//printf("Operand stop\n");
 }
 
 void emit_call(Code *code, Name_Table *nt, Function *f, Node *operator){
-	int is_external_call = lookup_name(nt, CHILD(operator, 0)->value)->is_external;
+	Row* r = lookup_name(nt, CHILD(operator, 0)->value);
+	if(r == NULL){
+		printf("Attempt to call function '%s' failed because it could not be located. Does it exist?\n", CHILD(operator, 0)->value);
+		exit(1);
+	}
+	int is_external_call = r->is_external;
 	
 	if(!is_external_call){
-
-
-		emit_instruction(code, INST_PUSH_R, RET, -1, -1);
-		emit_instruction(code, INST_PUSH_R, 9, -1, -1);//Save frame pointer
-
-		//Save return register
-		//emit_instruction(code, INST_PUSH_R, RET, -1, -1);	
-		//Save the stack pointer in temporary register
-		//We still need the frame pointer to push arguments
-		//After that we will set the frame pointer
-		emit_instruction(code, INST_MOV_R, R2, 8, -1);//Move stack pointer into temporary register
+		emit_instruction(code, INST_PUSH_R, RET, -1, -1); 
+		emit_instruction(code, INST_PUSH_R, FP, -1, -1);
+		emit_instruction(code, INST_MOV_R, R2, SP, -1);	// Temporarily save SP
 	}
 	
 	Node *params = CHILD(operator, 1);
 	for (int i = 0;i < params->nodes.item_count; i++){
-		//Place needed values on the stack as the call arguments
-		emit_operand(code, nt, f, CHILD(params, i));
+		emit_operand(code, nt, f, CHILD(params, i));	// Put call parameters on stack
 	}
 
 	if(!is_external_call){
 		int call_location = index_of_name(nt, CHILD(operator, 0)->value);
 		if( call_location == -1){
 			printf("Trying to call function '%s' but it doesn't seem to exist yet\n", CHILD(operator, 0)->value);
-		}
-	
+		}	
 		emit_instruction(code, INST_MOV_R, FP, R2, -1);
 		emit_instruction(code, INST_CALL_I, call_location, -1, -1);
 		emit_instruction(code, INST_SWAP_STACK, -1, -1, -1);
@@ -112,40 +105,37 @@ void emit_call(Code *code, Name_Table *nt, Function *f, Node *operator){
 //just be popped right off again, could optimize later or just generate smarter code
 //The goal currently is just to get any code running then I'll see about being smart
 void emit_operator(Code *code, Name_Table *nt, Function *f, Node *operator){
-	//printf("Operator start\n");
 	Node *l = CHILD(operator, 0);
 	Node *r = CHILD(operator, 1);
 	emit_operand(code, nt,  f, l);
 	emit_operand(code, nt,  f, r);
-	emit_instruction(code, INST_POP_R, 1, -1, -1);
-	emit_instruction(code, INST_POP_R, 0, -1, -1);
+	emit_instruction(code, INST_POP_R, R1, -1, -1);
+	emit_instruction(code, INST_POP_R, R0, -1, -1);
 	
 	if(strcmp(operator->value, "==") == 0){
-		printf("Emitting equal\n");
-		emit_instruction(code, INST_SUB_R, 0, 0, 1);
-		emit_instruction(code, INST_CMP_I, 0, 0, -1);
-		emit_instruction(code, INST_JUMP_NEQL, code->length+3, -1, -1); //Need it to jump to after the goto
+		emit_instruction(code, INST_SUB_R, R0, R0, R1);
+		emit_instruction(code, INST_CMP_I, R0, 0, -1);
+		emit_instruction(code, INST_JUMP_NEQL, code->length+3, -1, -1);
 		
 		emit_instruction(code, INST_PUSH_I, 1, -1, -1);
-		emit_instruction(code, INST_GOTO_I, code->length+2, -1, -1); //Having trouble figuring out this jump, should jump to AFTER the next instruction
+		emit_instruction(code, INST_GOTO_I, code->length+2, -1, -1); 
 		emit_instruction(code, INST_PUSH_I, 0, -1, -1);
 
 	}else if(operator->value[0] == '+'){
-		emit_instruction(code, INST_ADD_R, 0, 0, 1);
-		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
+		emit_instruction(code, INST_ADD_R, R0, R0, R1);
+		emit_instruction(code, INST_PUSH_R, R0, -1, -1);
 	}else if(operator->value[0] == '-'){
-		emit_instruction(code, INST_SUB_R, 0, 0, 1);
+		emit_instruction(code, INST_SUB_R, R0, R0, R1);
 		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
 	}else if(operator->value[0] == '*'){
-		emit_instruction(code, INST_MUL_R, 0, 0, 1);
+		emit_instruction(code, INST_MUL_R, R0, R0, R1);
 		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
 	}else if (operator->value[0] == '/'){
-		emit_instruction(code, INST_DIV_R, 0, 0, 1);
+		emit_instruction(code, INST_DIV_R, R0, R0, R1);
 		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
 	}else{
 		printf("operator '%s' hasn't yet been implemented\n", operator->value);
 	}
-	//printf("Operator stop\n");
 }
 
 void emit_return(Code *code, Function *f){
@@ -162,14 +152,13 @@ void emit_return(Code *code, Function *f){
 	//Restore the old frame pointer for the calling function
 	if( strcmp(f->name, "main") != 0){
 		emit_instruction(code, INST_POP_R, FP, -1, -1);
-		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
+		emit_instruction(code, INST_PUSH_R, R0, -1, -1);
 	}
 	if(strcmp(f->name, "main") == 0){
 		emit_instruction(code, INST_HALT, -1, -1, -1);
 	}else{
 		emit_instruction(code, INST_RET, -1, -1, -1);
 	}
-
 }
 
 void emit_expression(Code *code, Name_Table *nt, Function *f, Node *child){
@@ -181,48 +170,44 @@ void emit_expression(Code *code, Name_Table *nt, Function *f, Node *child){
 }
 
 void emit_block(Code *code, Name_Table *nt, Function *f, Node *block);
+
 void emit_if_block(Code *code, Name_Table *nt, Function *f, Node *block){
 	Node *expression = CHILD(block, 0);
 	emit_expression(code, nt, f, expression);
 	emit_instruction(code, INST_POP_R, R0, -1, -1);
 	emit_instruction(code, INST_CMP_I, R0, 1, -1);
-	// First reserve space for the jump instruction
-	emit_instruction(code, INST_JUMP_NEQL, -1, -1, -1);	
-	// Then emit_block
+	
+	emit_instruction(code, INST_JUMP_NEQL, -1, -1, -1);	// Emit place holder location
 	Node *b = CHILD(block, 1);
 	emit_block(code, nt, f, b);
-	//Now patch the jump we made to jump to end of block
-	code->code[f->block_start-1].a = f->block_end;
+	code->code[f->block_start-1].a = f->block_end;		// Patch location
 }
 
 void emit_block(Code *code, Name_Table *nt, Function *f,  Node *block){
 	f->block_start = code->length;
+	
+	// Refactor: Should I use an iter?
 	for (int i = 0; i<block->nodes.item_count; i++){
 		Node *line = CHILD(block, i);
 		if (line->type == TYPE_DECL){
 			Parameter p;
 			p.name = CHILD(line, 0)->value;
 			p.offset = f->offset++;
-
 			add_item(&f->params, (void *)&p);
 
 			emit_instruction(code, INST_PUSH_I, 0, -1, -1);
 		}else if(line->type == TYPE_OPERATOR){
-			//Need to do a better job of checking this
 			if (strcmp(line->value, "=") == 0){
 				emit_operand(code, nt, f, CHILD(line, 1));
-
 				int offset = offset_for_param(f, CHILD(line, 0)->value);
 
-				//Seems backwards
 				emit_instruction(code, INST_ADD_I, 0, 9, offset); 
 				emit_instruction(code, INST_POP_R, 1, -1, -1);
 				emit_instruction(code, INST_SAVE_R, 0, 1, -1);	
 			}
 		}else if (line->type == TYPE_CALL){
 			emit_operand(code, nt, f, line);
-			//We aren't doing anything with the value so lets get rid of it
-			emit_instruction(code, INST_POP, -1, -1, -1);
+			emit_instruction(code, INST_POP, -1, -1, -1); // Unused return value
 		}else if (line->type == TYPE_IF){
 			emit_if_block(code, nt, f, line);
 		}else if (line->type == TYPE_RETURN){
@@ -235,7 +220,6 @@ void emit_block(Code *code, Name_Table *nt, Function *f,  Node *block){
 	}
 	f->block_end = code->length;
 	printf("Block from %d to %d\n", f->block_start, f->block_end);
-
 }
 
 void show_function(Function *f){
@@ -251,29 +235,19 @@ void show_function(Function *f){
 }
 
 void emit_function(Code *code, Name_Table *nt, Node *func){
-	//printf("Function start\n");
-
 	Function f;
 	f.offset = 0;
-	//Maybe a copy would be good so that the node doesn't need to stay in memory
-	f.name = CHILD(func, 0)->value;
+	
+	f.name = CHILD(func, 0)->value; // Refactor: Should this be a copy instead?
 	f.params = make_array(sizeof(Parameter));
 
-	//If the function is external we don't want to patch the location
-	//as they have fixed 'locations' which are just array indices
+	// If the function is external we don't want to patch the location
+	// as they have fixed 'locations' which are just array indices
 	if(!lookup_name(nt, f.name)->is_external){
 		set_location(nt, f.name, code->length);
 	}
 
-	//add_label(code, f.name, code->length);
-
-	//Main tries to pop something off the stack at the end
-	//but nothing called it, so there will be nothing
-	//so I push a dummy onto the stack for it to pop later without dying
-	printf("Emitting code for function '%s'\n", f.name);
-
-	//Deal with parameters, node code needs to be emitted as they will be pushed
-	//onto the stack by the caller.
+	// Reserve space on stack for function parameters
 	Node *params = CHILD(func, 1);
 	for (int i = 0; i < params->nodes.item_count; i++){
 		Node *decl = CHILD(params, i);
@@ -284,13 +258,9 @@ void emit_function(Code *code, Name_Table *nt, Node *func){
 
 		add_item(&f.params, (void *)&p);
 	}
-	//Now we need to go through each expression in the block and emit the appropriate
-	//code. This will become more complex when I introduce control flow
+
 	Node* block = CHILD(func, 3);
-	emit_block(code, nt, &f, block);
-	//The block is expected to generate the return for a function
-	//Will later have a stage that validates the structure and inserts
-	//a return if needed.
+	emit_block(code, nt, &f, block);	// Emit the body of the function
 
 	show_function(&f);
 }
@@ -299,7 +269,6 @@ void emit_function(Code *code, Name_Table *nt, Node *func){
 Name_Table make_name_table(){
 	Name_Table nt;
 	nt.names = make_array(sizeof(Row));
-
 	return nt;
 }
 
@@ -380,7 +349,6 @@ void build_code(Node *node, Code *code, Name_Table *nt){
 	Node *n = NULL;
 	while((n = (Node *)next_item(&nodes)) != NULL){
 		if(n->type == TYPE_FUNCTION){
-			//Figure out where we want to check if the function already defined.
 			int is_external = n->flags & FLAG_EXTERNAL;
 			register_name(nt, CHILD(n, 0)->value, is_external);
 		}else{
@@ -395,7 +363,7 @@ void build_code(Node *node, Code *code, Name_Table *nt){
 		if(n->type == TYPE_FUNCTION){
 			emit_function(code, nt, n);
 		}else{
-			printf("Only handle functions at the top level currently\n");
+			printf("Only functions can currently be defined at the top level\n");
 		}
 	}
 }

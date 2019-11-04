@@ -5,9 +5,18 @@ function factorial(var number u32) -> u32{
 	return factorial(number - 1) * number;
 }
 
+function to_number(var character u32) -> u32 {
+	return character - 48;
+}
+
 function main() -> void {
-	print(factorial(4));
+	var number u32;
+	number = to_number(get());
+	
+	print(number);
+	print(factorial(number));
 	return;
 }
 
+external function get() -> u32 { return; }
 external function print(var a u32) -> void {return;}

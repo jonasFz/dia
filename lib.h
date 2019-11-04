@@ -4,7 +4,7 @@
 #include "builder.h"
 #include "dsm.h"
 
-#define EXT_COUNT 1
+#define EXT_COUNT 2
 
 typedef void (* External)(Interp*);
 

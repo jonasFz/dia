@@ -56,7 +56,6 @@ Node* create_node(Parser *p, int index, int length){
 
 	n->type = TYPE_UNDEFINED;
 
-	n->scope = NULL;
 	n->nodes = make_array(sizeof(Node));
 
 	return n;

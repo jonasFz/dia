@@ -16,6 +16,7 @@ const char *OP[OP_COUNT] ={
 	"POP",
 	"PUSH_I",
 	"PUSH_R",
+	"PUSH_RI",
 	"ADD_I",
 	"ADD_R",
 	"SUB_I",
@@ -92,7 +93,6 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 
 	for(int i = 0; i < interp->stack_length; i++){
 		interp->stack[i] = 0;
-		//printf("stack[%d] = %d\n", i, interp->stack[i]);
 	}
 
 
@@ -154,7 +154,6 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 				interp->reg[i.a] = interp->reg[i.b] * i.c;
 				break;
 			case INST_MUL_R:
-				printf("Multipling %d * %d\n", interp->reg[i.b], interp->reg[i.c]);
 				interp->reg[i.a] = interp->reg[i.b] * interp->reg[i.c];
 				break;
 			case INST_DIV_I:
@@ -192,11 +191,10 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 			case INST_EXT_CALL_I:
 				externals[((Row *)get_item(&nt->names, i.a))->location](interp);
 				break;
-			case INST_RET: // I think this should probably handle clean up
+			case INST_RET:
 				interp->reg[IS] = interp->reg[RET];
 				break;
 			case INST_CMP_I:
-			//	printf("Comparing %d to %d\n", interp->reg[i.a], i.b);
 				if(interp->reg[i.a] == i.b){
 					interp->cmp = CMP_E;
 				}else if(interp->reg[i.a] < i.b){
@@ -296,7 +294,6 @@ int load_dsm(const char *file_path, Code *code){
 		int cv = -1;
 
 		sscanf(line, "%s %d %d %d", op, &av, &bv, &cv);
-		//printf("%s %s %s %s\n", op, a, b, c);			
 
 		int oper = get_op(op);
 
