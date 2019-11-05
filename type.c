@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "type.h"
+#include "parse.h"
 
 Type_Table* make_type_table(){
 	Type_Table* tt = (Type_Table *)malloc(sizeof(Type_Table));
@@ -12,6 +13,11 @@ Type_Table* make_type_table(){
 	return tt;
 }
 
+
+// Speed: This should probably do a hash lookup at some point.
+// As programs get big and we have alot of types this linear
+// search will get too expensive. But I think Knuth said that
+// premature optimization is the root of all evil - Jonas Ferencz November 5, 2019
 Type* find_type(Type_Table *tt, const char *name){
 	for (int i = 0; i < tt->count; i++){
 		if (strcmp(name, tt->types[i].name) == 0){
@@ -37,6 +43,7 @@ void register_type(Type_Table *tt, const char *name, unsigned int length){
 }
 
 void add_built_in_types(Type_Table *tt){
+	register_type(tt, "void", 1);
 	register_type(tt, "u8", 1);
 	register_type(tt, "s8", 1);
 	register_type(tt, "u16", 2);
@@ -53,3 +60,53 @@ void print_type_table(Type_Table *tt){
 		printf("%d %s\n", tt->types[i].length,  tt->types[i].name);
 	}
 }
+
+
+void type_check_function(Node *function, Type_Table *tt){
+	if(function->type != TYPE_FUNCTION){
+		printf("Unable to type check node because function expexted\n");
+		print_node(NULL, function);
+		exit(1);
+	}
+	char *function_name = CHILD(function, 0)->value;
+
+	// Type check parameters
+	Node *parameters = CHILD(function, 1);
+	Array_Iter pat = make_array_iter(&parameters->nodes);
+	Node *parameter = NULL;
+	while((parameter = (Node *)next_item(&pat)) != NULL){
+		Node *type = CHILD(parameter, 1);
+		printf("Checking type '%s'\n", type->value);
+		if(find_type(tt, type->value) == NULL){
+			printf("In function '%s', type '%s' has not been defined\n", function_name, type->value);
+			exit(1);
+		}
+	}
+	
+	// Type check return type
+	Node *return_type = CHILD(function, 2);
+	if(find_type(tt, return_type->value	) == NULL){
+		printf("In function '%s', return type '%s' hasn't been defined\n", function_name, return_type->value);
+		exit(1);
+	}
+
+
+	// Type check block lines
+	Node *block = CHILD(function, 3);
+	Array_Iter bat = make_array_iter(&block->nodes);
+	Node *line = NULL;
+	while((line = (Node *)next_item(&bat)) != NULL){
+		if( line->type == TYPE_DECL ){
+			if( find_type(tt, CHILD(line, 1)->value) == NULL){
+				printf("In function '%s', declaration 'var %s %s' does not contain a defined type\n", function_name, CHILD(line, 0)->value, CHILD(line, 1)->value);
+				exit(1);
+			}
+		}else{
+			// Implement ME!!
+		}
+	}
+}
+
+
+
+

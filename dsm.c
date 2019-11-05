@@ -182,14 +182,14 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 				break;
 			case INST_CALL_I:
 				interp->reg[RET] = interp->reg[IS];
-				interp->reg[IS] = ((Row *)get_item(&nt->names, i.a))->location; 
+				interp->reg[IS] = ((Name *)get_item(&nt->names, i.a))->location; 
 				break;
 			case INST_CALL_R:
 				interp->reg[RET] = interp->reg[IS];
 				interp->reg[IS] = interp->reg[i.a];
 				break;
 			case INST_EXT_CALL_I:
-				externals[((Row *)get_item(&nt->names, i.a))->location](interp);
+				externals[((Name *)get_item(&nt->names, i.a))->location](interp);
 				break;
 			case INST_RET:
 				interp->reg[IS] = interp->reg[RET];

@@ -69,7 +69,7 @@ void emit_operand(Code *code, Name_Table *nt, Function *f, Node *operand){
 }
 
 void emit_call(Code *code, Name_Table *nt, Function *f, Node *operator){
-	Row* r = lookup_name(nt, CHILD(operator, 0)->value);
+	Name* r = lookup_name(nt, CHILD(operator, 0)->value);
 	if(r == NULL){
 		printf("Attempt to call function '%s' failed because it could not be located. Does it exist?\n", CHILD(operator, 0)->value);
 		exit(1);
@@ -219,7 +219,7 @@ void emit_block(Code *code, Name_Table *nt, Function *f,  Node *block){
 		}
 	}
 	f->block_end = code->length;
-	printf("Block from %d to %d\n", f->block_start, f->block_end);
+	//printf("Block from %d to %d\n", f->block_start, f->block_end);
 }
 
 void show_function(Function *f){
@@ -262,13 +262,13 @@ void emit_function(Code *code, Name_Table *nt, Node *func){
 	Node* block = CHILD(func, 3);
 	emit_block(code, nt, &f, block);	// Emit the body of the function
 
-	show_function(&f);
+	//show_function(&f);
 }
 
 
 Name_Table make_name_table(){
 	Name_Table nt;
-	nt.names = make_array(sizeof(Row));
+	nt.names = make_array(sizeof(Name));
 	return nt;
 }
 
@@ -278,20 +278,20 @@ void register_name(Name_Table *nt, char * name, int is_external){
 	strncpy(cpy, name, length);
 	cpy[length + 1] = '\0';
 
-	Row row;
-	row.name = cpy;
-	row.location = -1;
-	row.is_external = is_external;
+	Name n;
+	n.name = cpy;
+	n.location = -1;
+	n.is_external = is_external;
 
-	add_item(&nt->names, (void *)&row);
+	add_item(&nt->names, (void *)&n);
 }
 
-Row* lookup_name(Name_Table *nt, char *name){
+Name* lookup_name(Name_Table *nt, char *name){
 	Array_Iter at = make_array_iter(&nt->names);
-	Row *current = NULL;
+	Name *current = NULL;
 
 	int index = 0;
-	while((current = (Row *)next_item(&at)) != NULL){
+	while((current = (Name *)next_item(&at)) != NULL){
 		if(strcmp(current->name, name) == 0){
 			return current;
 		}
@@ -302,10 +302,10 @@ Row* lookup_name(Name_Table *nt, char *name){
 
 int index_of_name(Name_Table *nt, char *name){
 	Array_Iter at = make_array_iter(&nt->names);
-	Row *current = NULL;
+	Name *current = NULL;
 
 	int index = 0;
-	while((current = (Row *)next_item(&at)) != NULL){
+	while((current = (Name *)next_item(&at)) != NULL){
 		if(strcmp(current->name, name) == 0){
 			return index;
 		}
@@ -315,50 +315,33 @@ int index_of_name(Name_Table *nt, char *name){
 }
 
 void set_location(Name_Table *nt, char *name, int location){
-	Row *r = NULL;
-	if((r = lookup_name(nt, name)) == NULL){
+	Name *n = NULL;
+	if((n = lookup_name(nt, name)) == NULL){
 		printf("'%s' has not been defined in Name_Table, cannot set location %d\n", name, location);
 		return;
 	}
-	r->location = location;
+	n->location = location;
 }
 
 void print_name_table(Name_Table* nt){
 	Array_Iter at = make_array_iter(&nt->names);
-	Row *row = NULL;
+	Name *n = NULL;
 	int index = 0;
-	while((row = (Row *)next_item(&at)) != NULL){
-		printf("%2d: %s\n", index, row->name);
+	while((n = (Name *)next_item(&at)) != NULL){
+		printf("%2d: %s\n", index, n->name);
 		index++;
 	}
 }
 
 int get_location_of_name(Name_Table *nt, char *name){
-	Row *r = lookup_name(nt, name);
-	if(r == NULL) return -1;
-	return r->location;
+	Name* n = lookup_name(nt, name);
+	if(n == NULL) return -1;
+	return n->location;
 }
 
 void build_code(Node *node, Code *code, Name_Table *nt){
-	if(node->type != TYPE_GLOBAL){
-		printf("Can only build code from a node of type GLOBAL\n");
-		return;
-	}
-	*nt = make_name_table();
 	Array_Iter nodes = make_array_iter(&node->nodes);
 	Node *n = NULL;
-	while((n = (Node *)next_item(&nodes)) != NULL){
-		if(n->type == TYPE_FUNCTION){
-			int is_external = n->flags & FLAG_EXTERNAL;
-			register_name(nt, CHILD(n, 0)->value, is_external);
-		}else{
-			printf("Only handle functions at the top level currently\n");
-		}
-	}
-	print_name_table(nt);
-
-	nodes = make_array_iter(&node->nodes);
-	n = NULL;
 	while((n = (Node *)next_item(&nodes)) != NULL){
 		if(n->type == TYPE_FUNCTION){
 			emit_function(code, nt, n);

@@ -33,6 +33,40 @@ char *load_file(char *file_path){
 	return data;
 }
 
+void type_check_functions(Node* global, Type_Table *tt, Name_Table *nt){
+	if(global->type != TYPE_GLOBAL){
+		printf("A node of type global must be passed to 'type_check_functions'\n");
+		exit(1);
+	}
+	Array_Iter at = make_array_iter(&global->nodes);
+	Node *node = NULL;
+	while((node = (Node *)next_item(&at))!= NULL){
+		type_check_function(node, tt);
+	}
+}
+
+Name_Table build_name_table(Node *global){
+	Name_Table nt;
+
+	if(global->type != TYPE_GLOBAL){
+		printf("Can only build code from a node of type GLOBAL\n");
+		return nt;
+	}
+	nt = make_name_table();
+	Array_Iter nodes = make_array_iter(&global->nodes);
+	Node *n = NULL;
+	while((n = (Node *)next_item(&nodes)) != NULL){
+		if(n->type == TYPE_FUNCTION){
+			int is_external = n->flags & FLAG_EXTERNAL;
+			register_name(&nt, CHILD(n, 0)->value, is_external);
+		}else{
+			printf("Only handle functions at the top level currently\n");
+		}
+	}
+	
+	return nt;
+}
+
 int main(int argc, char **argv){
 
 	if(argc != 2){
@@ -50,24 +84,23 @@ int main(int argc, char **argv){
 
 
 	Code code = make_code();
-	Name_Table nt = make_name_table();
+	Name_Table nt = build_name_table(global);
+	
 
+	type_check_functions(global, tt, &nt);
 
 	build_code(global, &code, &nt);
-	show_code(&code);
+	//show_code(&code);
 	printf("-----------------------");
-	Row* r = lookup_name(&nt, "main");
-	if(r == NULL){
+	Name* name = lookup_name(&nt, "main");
+	if(name == NULL){
 		printf("Your program needs a main function\n");
 	}else{
-		printf("Main function found at instruction index:  %d\n", r->location);
+		printf("Main function found at instruction index:  %d\n", name->location);
 		Interp interp;
-		interpret(&interp, &code, &nt, r->location);
+		interpret(&interp, &code, &nt, name->location);
 	}
 
-	//emit_function(global->nodes.nodes);
-
-	//print_type_table(tt);
 
 	free(p.src);
 
