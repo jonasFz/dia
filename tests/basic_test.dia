@@ -1,0 +1,23 @@
+external function assert(var a u32) -> void;
+external function print(var a u32) -> void;
+
+function factorial(var value u32) -> u32 {
+	if value == 1 {
+		return 1;
+	}
+	var ret u32;
+	ret = factorial(value - 1) * value;
+	return ret;
+}
+
+function main() -> void{
+	
+	assert(1 == 1);
+
+	assert(-1);
+
+	assert(factorial(1) == 1);
+	assert(factorial(3) == 6);
+	print(factorial(3));
+	return;
+}

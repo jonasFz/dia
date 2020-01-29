@@ -65,6 +65,8 @@ typedef struct Inst{
 	int a;
 	int b;
 	int c;
+
+	int source_line_number;
 } Inst;
 
 typedef struct Label{
@@ -79,6 +81,8 @@ typedef struct Interp{
 	unsigned int stack_length;
 
 	unsigned int cmp;
+
+	int line;
 } Interp;
 
 typedef struct Code{
@@ -86,6 +90,8 @@ typedef struct Code{
 	Array labels;
 	unsigned int length;
 	unsigned int cap;
+
+	int current_source_line;
 } Code;
 
 void add_label(Code *code, char *label, int value);
@@ -97,5 +103,6 @@ Inst make_inst(unsigned int inst, int a, int b, int c);
 void add_inst(Code *code, Inst inst);
 Code make_code();
 void show_code(Code *code);
+void update_line(Code *code, int line);
 
 #endif

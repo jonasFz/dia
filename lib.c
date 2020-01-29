@@ -18,15 +18,18 @@ void ext_assert(Interp *interp){
 	int is_true = interp->stack[--interp->reg[SP]];
 	if(!is_true){
 		//TODO We really need location information
-		printf("Assertion failed\n!");
+		printf("Assertion failed!\n");
+		printf("Line number %d\n", interp->line + 1);
 		exit(0);
 	}
+	interp->stack[interp->reg[SP]++] = 0;
 }
 
 //All of these function currently MUST leave something on the stack
 External externals[EXT_COUNT] = {
 	ext_print,
-	ext_get
+	ext_get,
+	ext_assert
 };
 
 External* get_externals(){
@@ -38,4 +41,5 @@ void register_externals(Name_Table *nt){
 	//Wont be able to set_location in those cases.
 	set_location(nt, "print", 0);
 	set_location(nt, "get", 1);
+	set_location(nt, "assert", 2);
 }

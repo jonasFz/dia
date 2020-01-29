@@ -59,7 +59,13 @@ Code make_code(){
 
 	c.labels = make_array(sizeof(Label));
 
+	c.current_source_line = 0;
+
 	return c;
+}
+
+void update_line(Code *code, int line){
+	code->current_source_line = line;
 }
 
 void add_inst(Code *code, Inst inst){
@@ -104,6 +110,7 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 		}
 
 		Inst i = code[interp->reg[IS]++];
+		interp->line = i.source_line_number;
 		//printf("SP=%d, FP=%d, RET=%d, IS=%d\n", interp->reg[SP], interp->reg[FP], interp->reg[RET], interp->reg[IS]);
 		//printf("%2d: %10s %2d %2d %2d :: ",interp->reg[IS]-1, OP[i.inst], i.a, i.b, i.c);
 

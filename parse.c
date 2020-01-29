@@ -204,6 +204,14 @@ int accept_ident(Parser *p){
 }
 
 int accept_digit(Parser *p){
+	//Accept a negative if we need to
+	if(CUR(p) == '-'){
+		p->off++;
+		// No space after negative cause it makes things easier
+		if(CUR(p) == ' '){
+			p->off--;
+		}
+	}
 	while(CUR(p) >= '0' && CUR(p) <='9'){
 		p->off++;
 	}	
@@ -335,8 +343,8 @@ Node* parse_operand(Parser *p){
 	}
 
 	ret = parse_digit(p);
-	if (ret) return ret;
 
+	if (ret) return ret;
 	return NULL;
 }
 
@@ -360,8 +368,19 @@ Node* parse_expression(Parser *p){
 	eat_spaces(p);
 	int gogo = 1;
 	while(gogo){
-		Node *thing = parse_operator(p);
-		if (thing){
+		Node *operand = parse_operand(p);
+		if(operand){
+			if(!operand){
+				gogo = 0;
+				break;
+			}
+			nstack[nsp++] = operand;
+		}else{
+			Node *thing = parse_operator(p);
+			if(thing == NULL){
+				break;
+			}
+			//printf("The value of thing is %s\n", thing->value);
 			if(osp > 0){
 				if(compare_precedence(ostack[osp-1], thing) >= 0){
 					Node *top = ostack[--osp];
@@ -373,13 +392,6 @@ Node* parse_expression(Parser *p){
 				}
 			}
 			ostack[osp++] = thing;
-		}else{
-			Node *operand = parse_operand(p);
-			if(!operand){
-				gogo = 0;
-				break;
-			}
-			nstack[nsp++] = operand;
 		}
 		eat_spaces(p);
 	}
@@ -398,6 +410,7 @@ Node* parse_expression(Parser *p){
 		return n;
 	}else if (nsp != 1){
 		print_node(NULL, nstack[nsp-1]);
+		fail_parse(p,"");
 		printf("Strange number of things left on stack while parsing expression %d\n", nsp);
 		fail_hard();
 	}

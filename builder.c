@@ -46,12 +46,14 @@ void print_function(Function function){
 //This could probably be a macro but I will wait until it is finalized, eventually I wont just be printing this stuff out and will actually be building code
 void emit_instruction(Code *code, unsigned int op, int a, int b, int c){
 	Inst i = make_inst(op, a, b, c);
+	i.source_line_number = code->current_source_line;
 	add_inst(code, i);
 }
 
 void emit_call(Code *code, Name_Table *nt, Function *f, Node *operator);
 void emit_operator(Code *code,Name_Table *nt, Function *f, Node *operator);
-void emit_operand(Code *code, Name_Table *nt, Function *f, Node *operand){
+void emit_operand(Code *code, Name_Table *nt, Function *f, Node *operand){	
+	update_line(code, operand->source_location.line);
 	if(operand->type == TYPE_IDENT){
 		int offset = offset_for_param(f, operand->value);
 		emit_instruction(code, INST_LOAD_RI, R0, FP, offset);
@@ -69,6 +71,8 @@ void emit_operand(Code *code, Name_Table *nt, Function *f, Node *operand){
 }
 
 void emit_call(Code *code, Name_Table *nt, Function *f, Node *operator){
+
+	update_line(code, operator->source_location.line);
 	Name* r = lookup_name(nt, CHILD(operator, 0)->value);
 	if(r == NULL){
 		printf("Attempt to call function '%s' failed because it could not be located. Does it exist?\n", CHILD(operator, 0)->value);
@@ -105,6 +109,8 @@ void emit_call(Code *code, Name_Table *nt, Function *f, Node *operator){
 //just be popped right off again, could optimize later or just generate smarter code
 //The goal currently is just to get any code running then I'll see about being smart
 void emit_operator(Code *code, Name_Table *nt, Function *f, Node *operator){
+	update_line(code, operator->source_location.line);
+
 	Node *l = CHILD(operator, 0);
 	Node *r = CHILD(operator, 1);
 	emit_operand(code, nt,  f, l);
@@ -163,6 +169,7 @@ void emit_return(Code *code, Function *f){
 }
 
 void emit_expression(Code *code, Name_Table *nt, Function *f, Node *child){
+	update_line(code, child->source_location.line);
 	if(child->type == TYPE_OPERATOR){
 		emit_operator(code, nt, f, child);
 	}else{
@@ -173,6 +180,8 @@ void emit_expression(Code *code, Name_Table *nt, Function *f, Node *child){
 void emit_block(Code *code, Name_Table *nt, Function *f, Node *block);
 
 void emit_if_block(Code *code, Name_Table *nt, Function *f, Node *block){
+	update_line(code, block->source_location.line);
+	
 	Node *expression = CHILD(block, 0);
 	emit_expression(code, nt, f, expression);
 	emit_instruction(code, INST_POP_R, R0, -1, -1);
@@ -185,6 +194,8 @@ void emit_if_block(Code *code, Name_Table *nt, Function *f, Node *block){
 }
 
 void emit_block(Code *code, Name_Table *nt, Function *f,  Node *block){
+	update_line(code, block->source_location.line);
+	
 	f->block_start = code->length;
 	
 	// Refactor: Should I use an iter?
@@ -236,6 +247,9 @@ void show_function(Function *f){
 }
 
 void emit_function(Code *code, Name_Table *nt, Node *func){
+	
+	update_line(code, func->source_location.line);
+
 	Function f;
 	f.offset = 0;
 	
