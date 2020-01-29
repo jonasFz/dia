@@ -76,7 +76,7 @@ void type_check_function(Node *function, Type_Table *tt){
 	Node *parameter = NULL;
 	while((parameter = (Node *)next_item(&pat)) != NULL){
 		Node *type = CHILD(parameter, 1);
-		printf("Checking type '%s'\n", type->value);
+		//printf("Checking type '%s'\n", type->value);
 		if(find_type(tt, type->value) == NULL){
 			printf("In function '%s', type '%s' has not been defined\n", function_name, type->value);
 			exit(1);
@@ -90,20 +90,33 @@ void type_check_function(Node *function, Type_Table *tt){
 		exit(1);
 	}
 
+	if(function->flags & FLAG_EXTERNAL){
+		return;
+	}
 
 	// Type check block lines
 	Node *block = CHILD(function, 3);
 	Array_Iter bat = make_array_iter(&block->nodes);
 	Node *line = NULL;
+
+	unsigned int has_return = 0;
 	while((line = (Node *)next_item(&bat)) != NULL){
 		if( line->type == TYPE_DECL ){
 			if( find_type(tt, CHILD(line, 1)->value) == NULL){
 				printf("In function '%s', declaration 'var %s %s' does not contain a defined type\n", function_name, CHILD(line, 0)->value, CHILD(line, 1)->value);
 				exit(1);
 			}
+		}else if(line->type == TYPE_RETURN){
+			has_return = 1;
 		}else{
 			// Implement ME!!
 		}
+	}
+	// This just decides if the function returns based on if it has seen a return already,
+	// obviously not enough though. Will have to figure out code path analysis to make sure
+	// all code paths return, and probably insert one if neeeded.
+	if(has_return == 0){
+		printf("Function %s does not have a return statement\n", function_name);
 	}
 }
 

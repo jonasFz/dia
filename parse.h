@@ -42,6 +42,12 @@
 
 const char *decode_type(unsigned int type);
 
+typedef struct Source_Location{
+	unsigned int line;
+	unsigned int index;
+	unsigned int pointer;
+} Source_Location;
+
 typedef struct Parser{
 	char *src;
 	int cur;
@@ -49,8 +55,9 @@ typedef struct Parser{
 
 	int state;
 
-}Parser;
+	Source_Location current_location;
 
+}Parser;
 
 typedef struct Node Node;
 
@@ -63,6 +70,7 @@ struct Node{
 	Array nodes;
 
 	unsigned int flags;
+	Source_Location source_location;
 };
 
 Parser make_parser(char *);

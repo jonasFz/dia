@@ -1,0 +1,19 @@
+external function print(var a u32) -> void;
+external function get() -> u32;
+
+function add(var a u32, var b u32) -> u32{
+	print(1);
+	var c u32;
+	print(2);
+	c = a + b;
+	print(3);
+	var return u32;
+	return c;
+}
+
+function main() -> void{
+	print(add(2,2));
+	print(88);
+
+	return;
+}

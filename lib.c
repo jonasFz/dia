@@ -14,6 +14,15 @@ void ext_get(Interp *interp){
 	interp->stack[interp->reg[SP]++] = c;
 }
 
+void ext_assert(Interp *interp){
+	int is_true = interp->stack[--interp->reg[SP]];
+	if(!is_true){
+		//TODO We really need location information
+		printf("Assertion failed\n!");
+		exit(0);
+	}
+}
+
 //All of these function currently MUST leave something on the stack
 External externals[EXT_COUNT] = {
 	ext_print,

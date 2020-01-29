@@ -139,7 +139,7 @@ void emit_operator(Code *code, Name_Table *nt, Function *f, Node *operator){
 }
 
 void emit_return(Code *code, Function *f){
-	
+
 	// The block will leave a value on the stack, here we pop it off
 	// so we can put it at the bottom of the stack later as the return value
 	// TYPE will need to figure out how to return big things.
@@ -155,6 +155,7 @@ void emit_return(Code *code, Function *f){
 		emit_instruction(code, INST_PUSH_R, R0, -1, -1);
 	}
 	if(strcmp(f->name, "main") == 0){
+		printf("Emmiting halt instruction\n");
 		emit_instruction(code, INST_HALT, -1, -1, -1);
 	}else{
 		emit_instruction(code, INST_RET, -1, -1, -1);
@@ -317,7 +318,8 @@ int index_of_name(Name_Table *nt, char *name){
 void set_location(Name_Table *nt, char *name, int location){
 	Name *n = NULL;
 	if((n = lookup_name(nt, name)) == NULL){
-		printf("'%s' has not been defined in Name_Table, cannot set location %d\n", name, location);
+		//TODO I'm not sure what we actually want to do in this case, cause we shouldn't have to include everytime
+		//printf("'%s' has not been defined in Name_Table, cannot set location %d\n", name, location);
 		return;
 	}
 	n->location = location;

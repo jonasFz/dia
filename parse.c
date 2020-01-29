@@ -34,6 +34,24 @@ void append_node(Node *p, Node *n){
 	add_item(&p->nodes, (void *)n);
 }
 
+void fail_parse(Parser *p, char *message){
+	printf("%s\n", message);
+	Source_Location location = p->current_location;
+	char *line = p->src + location.pointer;
+	while(1){
+		if(line[0] == '\n') break;
+		putchar(line[0]);
+		line++;
+	}
+
+	printf("        [%d:%d] ", location.line + 1, location.index + 1);
+	printf("\n");
+	for(int i = 0; i < location.index; i++){
+		putchar('-');
+	}
+	printf("^\n");
+}
+
 void set_node_value(Node *n, char * value){
 	int length = strlen(value);
 	n->value = (char *)malloc(sizeof(char) * length+1);
@@ -70,6 +88,10 @@ Parser make_parser(char *src_path){
 
 	p.state = STATE_PARSING;
 
+	p.current_location.line = 0;
+	p.current_location.index = 0;
+	p.current_location.pointer = 0;
+
 	return p;
 }
 
@@ -78,17 +100,33 @@ void fail_hard(){
 	exit(0);
 }
 
+void advance_cursor(Parser *p, int amount){
+	p->off = 0;
+	for(int i = 0; i < amount; i++){
+		p->current_location.index++;
+		if(CUR(p) == '\n'){
+			p->current_location.pointer += p->current_location.index;
+			p->current_location.line++;
+			p->current_location.index = 0;
+		}
+	}
+	p->cur += amount;
+}
 
+void advance(Parser *p){
+	advance_cursor(p, p->off);
+	p->off = 0;
+}
 
 Node* claim_type(Parser *p, unsigned int type){
 
 	Node *n = create_node(p, p->cur, p->off);
 	n->type = type;
-
 	n->flags = 0;
 
-	p->cur +=  p->off;
-	p->off = 0;
+	n->source_location = p->current_location;
+
+	advance(p);
 
 	return n;
 }
@@ -99,20 +137,18 @@ Node* claim(Parser *p){
 
 void print_indent(int indent){
 	while (indent != 0){
-		printf(" ");
+		printf("-");
 		indent--;
 	}
 }
 
 void __print_node(Parser *p, Node *n, int indent, int count){
-	if(n->flags & FLAG_EXTERNAL){
-		printf("external ");
-	}
 	print_indent(indent);
-	printf("%d: %s:%s", count, decode_type(n->type), n->value);
-	/*for(int i = 0; i < n->length; i++){
-		printf("%c", p->src[n->index+i]);
-	}*/
+	if(!(n->flags & FLAG_EXTERNAL)){	
+		printf("%d: %s:%s", count, decode_type(n->type), n->value);
+	}else{
+		printf("%d: <external> %s:%s", count, decode_type(n->type), n->value);
+	}
 	if (n->nodes.item_count > 0){
 		printf("[\n");
 		for (int i = 0; i < n->nodes.item_count; i++){
@@ -123,8 +159,8 @@ void __print_node(Parser *p, Node *n, int indent, int count){
 	}else{
 		printf("[]\n");
 	}
-
 }
+
 void print_node(Parser *p, Node *n){
 	__print_node(p, n, 0, 0);
 }
@@ -132,7 +168,7 @@ void print_node(Parser *p, Node *n){
 /* Maybe this should be inlined, or a macro */
 void eat_spaces(Parser *p){
 	while(CUR(p) == ' ' || CUR(p) == '\n' || CUR(p) == '\t'){
-		p->cur++;
+		advance_cursor(p, 1);
 	}
 	p->off = 0;
 }
@@ -151,8 +187,7 @@ int accept(Parser *p, char *pattern){
 }
 
 void ignore_current(Parser *p){
-	p->cur += p->off;
-	p->off = 0;
+	advance(p);
 }
 
 //These accept funtions are assuming that the initial offset equals zero
@@ -174,7 +209,6 @@ int accept_digit(Parser *p){
 	}	
 	return p->off;
 }
-
 
 //Incomplete
 //precedence choices match c for now, until I figure out what I need
@@ -242,6 +276,7 @@ Node* parse_decl(Parser *p){
 
 	if(type == NULL){
 		printf("No type given when declaring '%s'\n'", ident->value);
+		fail_parse(p, "");
 		exit(1);
 	}
 	append_node(ret, ident);
@@ -272,7 +307,7 @@ Node* parse_call_params(Parser *p){
 		}else if(accept(p, ",")){
 			ignore_current(p);
 		}else{
-			printf("Failed to parse parameter list, expected ',' or ')'\n");
+			fail_parse(p, "Failed to parse parameter list, expected ',' or ')'");
 			p->state = STATE_ERROR;
 			fail_hard();
 		}
@@ -281,7 +316,6 @@ Node* parse_call_params(Parser *p){
 }
 
 Node* parse_operand(Parser *p){
-
 	Node *ret = parse_decl(p);
 	if (ret) return ret;
 
@@ -297,7 +331,7 @@ Node* parse_operand(Parser *p){
 			append_node(fcall, params);
 			return fcall;
 		}
-	       	return ret;
+		return ret;
 	}
 
 	ret = parse_digit(p);
@@ -376,7 +410,7 @@ Node* parse_block(Parser *p){
 
 	eat_spaces(p);
 	if (!accept(p, "{")){
-		printf("Expecting a '{' at begining of block\n");
+		fail_parse(p, "Expecting a '{' at begining of block");
 		p->state = STATE_ERROR;
 		fail_hard();
 	}
@@ -407,7 +441,7 @@ Node* parse_block(Parser *p){
 			eat_spaces(p);
 			
 			if(!accept(p, ";")){
-				printf("Return should have a semicolon\n");
+				fail_parse(p, "Return should have a semicolon");
 				p->state = STATE_ERROR;
 				fail_hard();
 			}
@@ -419,7 +453,7 @@ Node* parse_block(Parser *p){
 			append_node(block, parse_expression(p));
 			eat_spaces(p);
 			if(!accept(p, ";")){
-				printf("Expression should end with a ';'\n");
+				fail_parse(p, "Expression should end with a ';'");
 				p->state = STATE_ERROR;
 				fail_hard();
 			}
@@ -431,12 +465,11 @@ Node* parse_block(Parser *p){
 	return block;
 }
 
-
 Node* parse_params(Parser *p){
 	eat_spaces(p);
 
 	if(!accept(p, "(")){
-		printf("Expexted '('\n");
+		fail_parse(p, "Expexted '('");
 		p->state = STATE_ERROR;
 		fail_hard();
 	}
@@ -455,7 +488,7 @@ Node* parse_params(Parser *p){
 			if(accept(p, ",")){
 				ignore_current(p);
 			}else{
-				printf("Expected a ')' or a ','\n");
+				fail_parse(p, "Expected a ')' or a ','");
 				p->state = STATE_ERROR;
 				fail_hard();
 			}
@@ -469,7 +502,7 @@ Node* parse_params(Parser *p){
 Node* parse_return_type(Parser *p){
 	eat_spaces(p);
 	if(!accept(p, "->")){
-		printf("Expected a '->' before function body\n");
+		fail_parse(p, "Expected a '->' before function body");
 		p->state=STATE_ERROR;
 		fail_hard();
 	}
@@ -488,7 +521,7 @@ Node* parse_function(Parser *p){
 
 	eat_spaces(p);	
 	if(!accept(p, "function")){
-		printf("Expected a 'function' keyword\n");
+		fail_parse(p, "Expected a 'function' keyword");
 		p->state = STATE_ERROR;
 		fail_hard();
 	}
@@ -508,8 +541,16 @@ Node* parse_function(Parser *p){
 	append_node(n, ident);
 	append_node(n, parse_params(p));
 	append_node(n, parse_return_type(p));
-	append_node(n, parse_block(p));
-	
+	if(is_external == 0){
+		append_node(n, parse_block(p));
+	}else{
+		eat_spaces(p);
+		if(!accept(p, ";")){
+			fail_parse(p, "External function headers should be followed by a semi colon");
+			fail_hard();
+		}
+		ignore_current(p);
+	}
 	return n;
 }
 

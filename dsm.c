@@ -238,9 +238,6 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 
 		fgetc(stdin);
 */
-		if((interp->reg[IS]) >= proc->length){		
-			printf("Instruction location %d is out of range of this code\n", interp->reg[IS]+1);
-		}
 	}
 }
 
