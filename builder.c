@@ -16,6 +16,7 @@ typedef struct Function{
 
 	int offset;
 
+	// Cannot remember why this is
 	int block_start;
 	int block_end;
 } Function;
@@ -71,7 +72,6 @@ void emit_operand(Code *code, Name_Table *nt, Function *f, Node *operand){
 }
 
 void emit_call(Code *code, Name_Table *nt, Function *f, Node *operator){
-
 	update_line(code, operator->source_location.line);
 	Name* r = lookup_name(nt, CHILD(operator, 0)->value);
 	if(r == NULL){
@@ -119,6 +119,7 @@ void emit_operator(Code *code, Name_Table *nt, Function *f, Node *operator){
 	emit_instruction(code, INST_POP_R, R0, -1, -1);
 	
 	if(strcmp(operator->value, "==") == 0){
+		// This is ugly and can likely be nicer
 		emit_instruction(code, INST_SUB_R, R0, R0, R1);
 		emit_instruction(code, INST_CMP_I, R0, 0, -1);
 		emit_instruction(code, INST_JUMP_NEQL, code->length+3, -1, -1);
@@ -145,7 +146,6 @@ void emit_operator(Code *code, Name_Table *nt, Function *f, Node *operator){
 }
 
 void emit_return(Code *code, Function *f){
-
 	// The block will leave a value on the stack, here we pop it off
 	// so we can put it at the bottom of the stack later as the return value
 	// TYPE will need to figure out how to return big things.
@@ -182,15 +182,44 @@ void emit_block(Code *code, Name_Table *nt, Function *f, Node *block);
 void emit_if_block(Code *code, Name_Table *nt, Function *f, Node *block){
 	update_line(code, block->source_location.line);
 	
+
 	Node *expression = CHILD(block, 0);
 	emit_expression(code, nt, f, expression);
 	emit_instruction(code, INST_POP_R, R0, -1, -1);
 	emit_instruction(code, INST_CMP_I, R0, 1, -1);
 	
+	unsigned int start = code->length;
 	emit_instruction(code, INST_JUMP_NEQL, -1, -1, -1);	// Emit place holder location
 	Node *b = CHILD(block, 1);
 	emit_block(code, nt, f, b);
-	code->code[f->block_start-1].a = f->block_end;		// Patch location
+	emit_instruction(code, INST_GOTO_I, -1, -1, -1); // Place holder for end of conditional
+	code->code[start].a = code->length;
+	//code->code[f->block_start-1].a = f->block_end;		// Patch location
+}
+
+void emit_conditional(Code *code, Name_Table *nt, Function *f, Node *conditional){
+	unsigned int start = code->length;
+	unsigned int end = 0;
+	update_line(code, conditional->source_location.line);
+
+	Array_Iter at = make_array_iter(&conditional->nodes);
+	Node *child = NULL;
+	while((child = (Node *)next_item(&at)) != NULL){
+		if(child->type == TYPE_IF || child->type == TYPE_ELSE_IF){
+			emit_if_block(code, nt, f, child);
+		}else if (child->type == TYPE_ELSE){
+			emit_block(code, nt, f, CHILD(child, 0));
+			end = code->length;
+			break;
+		}
+		end = code->length;
+	}
+	// Bit hacky but we are just going to find those bad gotos and making them jump to end
+	for(int i = start; i < end; i++){
+		if(code->code[i].inst == INST_GOTO_I && code->code[i].a == -1){
+			code->code[i].a = end;
+		}
+	}
 }
 
 void emit_block(Code *code, Name_Table *nt, Function *f,  Node *block){
@@ -220,18 +249,17 @@ void emit_block(Code *code, Name_Table *nt, Function *f,  Node *block){
 		}else if (line->type == TYPE_CALL){
 			emit_operand(code, nt, f, line);
 			emit_instruction(code, INST_POP, -1, -1, -1); // Unused return value
-		}else if (line->type == TYPE_IF){
-			emit_if_block(code, nt, f, line);
+		}else if (line->type == TYPE_CONDITIONAL){
+			emit_conditional(code, nt, f, line);
 		}else if (line->type == TYPE_RETURN){
 			Node *child = CHILD(line, 0);
 			emit_expression(code, nt, f, child);
 			emit_return(code, f);
 		}else{
-			printf("Not really sure what to do with node of value '%s'\n", line->value);
+			printf("Emitting block, '%s' of type %d is unkown\n", line->value, line->type);
 		}
 	}
 	f->block_end = code->length;
-	//printf("Block from %d to %d\n", f->block_start, f->block_end);
 }
 
 void show_function(Function *f){
@@ -276,10 +304,7 @@ void emit_function(Code *code, Name_Table *nt, Node *func){
 
 	Node* block = CHILD(func, 3);
 	emit_block(code, nt, &f, block);	// Emit the body of the function
-
-	//show_function(&f);
 }
-
 
 Name_Table make_name_table(){
 	Name_Table nt;
@@ -287,7 +312,7 @@ Name_Table make_name_table(){
 	return nt;
 }
 
-void register_name(Name_Table *nt, char * name, int is_external){
+void register_name(Name_Table *nt, char *name, int is_external){
 	int length = strlen(name);
 	char *cpy = (char *)malloc(sizeof(char) * length+1);
 	strncpy(cpy, name, length);
@@ -333,7 +358,6 @@ void set_location(Name_Table *nt, char *name, int location){
 	Name *n = NULL;
 	if((n = lookup_name(nt, name)) == NULL){
 		//TODO I'm not sure what we actually want to do in this case, cause we shouldn't have to include everytime
-		//printf("'%s' has not been defined in Name_Table, cannot set location %d\n", name, location);
 		return;
 	}
 	n->location = location;

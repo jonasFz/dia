@@ -30,6 +30,7 @@ char *load_file(char *file_path){
 	fread(data, 1, size, f);
 	data[size] = '\0';
 
+	fclose(f);
 	return data;
 }
 

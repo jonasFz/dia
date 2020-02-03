@@ -21,7 +21,10 @@ const char *TYPES[] = {
 	"call",
 	"call_parameters",
 	"if_statement",
-	"return"
+	"return",
+	"conditional",
+	"else",
+	"else if"
 };
 
 /*This is a dangerous function*/
@@ -73,7 +76,6 @@ Node* create_node(Parser *p, int index, int length){
 	n->precedence -= 1;
 
 	n->type = TYPE_UNDEFINED;
-
 	n->nodes = make_array(sizeof(Node));
 
 	return n;
@@ -96,7 +98,7 @@ Parser make_parser(char *src_path){
 }
 
 /*Just wrapping exit until I decided what actually needs to be done*/
-void fail_hard(){
+void fail_hard(void){
 	exit(0);
 }
 
@@ -417,6 +419,42 @@ Node* parse_expression(Parser *p){
 	return nstack[0];
 }
 
+Node* parse_block(Parser *p);
+Node *parse_if(Parser *p){
+	ignore_current(p);
+	Node *if_statement = claim_type(p, TYPE_IF); 	
+	eat_spaces(p);
+	append_node(if_statement, parse_expression(p));
+	eat_spaces(p);
+	append_node(if_statement, parse_block(p));
+
+	return if_statement;
+}
+Node* parse_conditional(Parser *p){
+	ignore_current(p);
+
+	Node *conditional = claim_type(p, TYPE_CONDITIONAL);
+	append_node(conditional, parse_if(p));
+	//We don't actually keep the if keyword
+	eat_spaces(p);
+	while (accept(p, "else if")){
+		//Kinda hacky but just retyping an if node
+		Node *else_if = parse_if(p);
+		else_if->type = TYPE_ELSE_IF;
+		append_node(conditional, else_if);
+		eat_spaces(p);
+	}
+	if(accept(p, "else")){
+		printf("Do we not get here?\n");
+		ignore_current(p);
+		Node *else_block = claim_type(p, TYPE_ELSE);
+		eat_spaces(p);
+		append_node(else_block, parse_block(p));
+		append_node(conditional, else_block);
+	}
+	return conditional;
+}
+
 Node* parse_block(Parser *p){
 	
 	Node *block = claim_type(p, TYPE_BLOCK);
@@ -435,12 +473,7 @@ Node* parse_block(Parser *p){
 		if (accept(p, "if")){
 			ignore_current(p);
 			
-			Node *if_statement = claim_type(p, TYPE_IF); 
-			
-			eat_spaces(p);
-			append_node(if_statement, parse_expression(p));
-			eat_spaces(p);
-			append_node(if_statement, parse_block(p));
+			Node *if_statement = parse_conditional(p); 
 
 			append_node(block, if_statement);
 		}else if(accept(p, "return")){
