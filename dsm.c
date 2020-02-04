@@ -84,8 +84,6 @@ void show_code(Code *code){
 }
 
 void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
-	register_externals(nt);
-	External *externals = get_externals();
 
 	Inst *code = proc->code;
 	unsigned int length = proc->length;
@@ -196,7 +194,8 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 				interp->reg[IS] = interp->reg[i.a];
 				break;
 			case INST_EXT_CALL_I:
-				externals[((Name *)get_item(&nt->names, i.a))->location](interp);
+				get_external_by_index(i.a)(interp);
+				//externals[((Name *)get_item(&nt->names, i.a))->location](interp);
 				break;
 			case INST_RET:
 				interp->reg[IS] = interp->reg[RET];

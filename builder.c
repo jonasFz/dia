@@ -4,6 +4,7 @@
 
 #include "builder.h"
 #include "dsm.h"
+#include "lib.h"
 
 typedef struct Parameter{
 	char *name;
@@ -104,8 +105,13 @@ void emit_call(Code *code, Name_Table *nt, Function *f, Node *operator){
 		emit_instruction(code, INST_CALL_I, call_location, -1, -1);
 		emit_instruction(code, INST_SWAP_STACK, -1, -1, -1);
 		emit_instruction(code, INST_POP_R, RET, -1, -1);
-	}else{	
-		emit_instruction(code, INST_EXT_CALL_I, index_of_name(nt, CHILD(operator, 0)->value), -1, -1);
+	}else{
+		int external_index = lookup_external_index(CHILD(operator, 0)->value);
+		if(external_index == -1){
+			printf("External function '%s' is not defined\n", CHILD(operator, 0)->value);
+			exit(0);
+		}
+		emit_instruction(code, INST_EXT_CALL_I, external_index, -1, -1);
 	}
 }
 
@@ -295,6 +301,11 @@ void emit_function(Code *code, Name_Table *nt, Node *func){
 
 	// If the function is external we don't want to patch the location
 	// as they have fixed 'locations' which are just array indices
+	printf("Looking up name %s\n", f.name);
+	Name *n = lookup_name(nt, f.name);
+	if(n == NULL){
+		printf("But didn't find it?\n");
+	}
 	if(!lookup_name(nt, f.name)->is_external){
 		set_location(nt, f.name, code->length);
 	}
@@ -326,7 +337,7 @@ void register_name(Name_Table *nt, char *name, int is_external){
 	int length = strlen(name);
 	char *cpy = (char *)malloc(sizeof(char) * length+1);
 	strncpy(cpy, name, length);
-	cpy[length + 1] = '\0';
+	cpy[length] = '\0';
 
 	Name n;
 	n.name = cpy;
@@ -340,12 +351,11 @@ Name* lookup_name(Name_Table *nt, char *name){
 	Array_Iter at = make_array_iter(&nt->names);
 	Name *current = NULL;
 
-	int index = 0;
 	while((current = (Name *)next_item(&at)) != NULL){
 		if(strcmp(current->name, name) == 0){
+		
 			return current;
 		}
-		index++;
 	}
 	return NULL;
 }

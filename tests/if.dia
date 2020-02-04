@@ -37,10 +37,5 @@ function main() -> void {
 
 	test_just_if();
 
-	if 1==1 {
-		var apples u32;
-	}
-	apples = 1;
-
 	return;
 }

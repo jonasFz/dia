@@ -1,15 +1,12 @@
 #ifndef _H_LIB
 #define _H_LIB
 
-#include "builder.h"
 #include "dsm.h"
-
-#define EXT_COUNT 3
 
 typedef void (* External)(Interp*);
 
-void register_externals(Name_Table *nt);
+int lookup_external_index(const char *name);
+External get_external_by_index(unsigned int index);
 
-External* get_externals();
 
 #endif

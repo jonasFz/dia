@@ -1,7 +1,11 @@
 #include "lib.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#define EXT_COUNT 3
 
 void ext_print(Interp *interp){
 	int value = interp->stack[--interp->reg[SP]];
@@ -32,6 +36,27 @@ External externals[EXT_COUNT] = {
 	ext_assert
 };
 
+const char *names[EXT_COUNT] = {
+	"print",
+	"get",
+	"assert"
+};
+
+External get_external_by_index(unsigned int index){
+	assert(index < EXT_COUNT);
+	return externals[index];
+}
+
+int lookup_external_index(const char *name){
+	for (int i = 0; i < EXT_COUNT; i++){
+		if(strcmp(name, names[i]) == 0){
+			return i;
+		}
+	}
+	return -1;
+}
+
+/*
 External* get_externals(){
 	return externals;
 }
@@ -42,4 +67,4 @@ void register_externals(Name_Table *nt){
 	set_location(nt, "print", 0);
 	set_location(nt, "get", 1);
 	set_location(nt, "assert", 2);
-}
+}*/
