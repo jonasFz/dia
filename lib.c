@@ -55,16 +55,3 @@ int lookup_external_index(const char *name){
 	}
 	return -1;
 }
-
-/*
-External* get_externals(){
-	return externals;
-}
-
-void register_externals(Name_Table *nt){
-	//TODO figure out what we want to do for functions that aren't used
-	//Wont be able to set_location in those cases.
-	set_location(nt, "print", 0);
-	set_location(nt, "get", 1);
-	set_location(nt, "assert", 2);
-}*/
