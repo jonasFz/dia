@@ -1,0 +1,17 @@
+* type sizes when generating assembly, right now everything is just a 4byte integer
+
+* scopes. Variables declared in if blocks currently exist past the lifetime of their block
+
+* loops
+
+* arbitarty typed globals, (only functions at the moment)
+
+* pointers and the operations needed to work with them
+
+* string literals and type
+
+* casting
+
+* structs (big job)
+
+* Multi file programs

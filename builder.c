@@ -57,6 +57,10 @@ void emit_operand(Code *code, Name_Table *nt, Function *f, Node *operand){
 	update_line(code, operand->source_location.line);
 	if(operand->type == TYPE_IDENT){
 		int offset = offset_for_param(f, operand->value);
+		if(offset == -1){
+			printf("In emit_operand, paramerter '%s' not found\n", operand->value);
+			exit(0);
+		}
 		emit_instruction(code, INST_LOAD_RI, R0, FP, offset);
 		emit_instruction(code, INST_PUSH_R, R0, -1, -1);
 	}else if (operand->type == TYPE_OPERATOR){
@@ -161,7 +165,7 @@ void emit_return(Code *code, Function *f){
 		emit_instruction(code, INST_PUSH_R, R0, -1, -1);
 	}
 	if(strcmp(f->name, "main") == 0){
-		printf("Emmiting halt instruction\n");
+		printf("Emiting halt instruction\n");
 		emit_instruction(code, INST_HALT, -1, -1, -1);
 	}else{
 		emit_instruction(code, INST_RET, -1, -1, -1);
@@ -240,11 +244,17 @@ void emit_block(Code *code, Name_Table *nt, Function *f,  Node *block){
 		}else if(line->type == TYPE_OPERATOR){
 			if (strcmp(line->value, "=") == 0){
 				emit_operand(code, nt, f, CHILD(line, 1));
-				int offset = offset_for_param(f, CHILD(line, 0)->value);
-
+				char *val = CHILD(line, 0)->value;
+				int offset = offset_for_param(f, val);
+				if(offset == -1){
+					printf("Cannot output assignment because %s has not been defined\n", val);
+					exit(0);
+				}	
 				emit_instruction(code, INST_ADD_I, 0, 9, offset); 
 				emit_instruction(code, INST_POP_R, 1, -1, -1);
 				emit_instruction(code, INST_SAVE_R, 0, 1, -1);	
+			}else{
+				//@TODO then what!?
 			}
 		}else if (line->type == TYPE_CALL){
 			emit_operand(code, nt, f, line);
@@ -275,7 +285,6 @@ void show_function(Function *f){
 }
 
 void emit_function(Code *code, Name_Table *nt, Node *func){
-	
 	update_line(code, func->source_location.line);
 
 	Function f;
@@ -313,6 +322,7 @@ Name_Table make_name_table(){
 }
 
 void register_name(Name_Table *nt, char *name, int is_external){
+	// yuck
 	int length = strlen(name);
 	char *cpy = (char *)malloc(sizeof(char) * length+1);
 	strncpy(cpy, name, length);

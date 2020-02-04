@@ -15,12 +15,32 @@ function test_if(var a u32) -> u32 {
 	return -2;
 }
 
+function test_just_if() ->void {
+	var test u32;
+	test = 1;
+	assert(test == 1);
+	if test == 1{
+		test = 2;
+	}
+	test = 3;
+	assert(test == 3);
+
+	return;
+}
+
 function main() -> void {
 
 	assert(test_if(1) == 1);
 	assert(test_if(2) == 2);
 	assert(test_if(3) == 3);
 	assert(test_if(4) == 0);
+
+	test_just_if();
+
+	if 1==1 {
+		var apples u32;
+	}
+	apples = 1;
 
 	return;
 }

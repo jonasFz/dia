@@ -16,6 +16,7 @@ typedef struct Name_Table{
 
 Name_Table make_name_table();
 
+//Circular dependency when including dms.h, see there for this definiton
 typedef struct Code Code;
 
 void set_location(Name_Table *nt, char *name, int location);

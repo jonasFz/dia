@@ -120,6 +120,3 @@ void type_check_function(Node *function, Type_Table *tt){
 	}
 }
 
-
-
-

@@ -16,6 +16,8 @@ void add_item(Array *a, void *item);
 int pop_item(Array *a);
 void* get_item(Array *a, unsigned int index);
 
+
+void free_array(Array *a);
 typedef struct Array_Iter{
 	Array *array;
 	int index;

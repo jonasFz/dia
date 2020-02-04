@@ -13,6 +13,13 @@ Array make_array(int item_size){
 	return a;
 }
 
+void free_array(Array *a){
+	free(a->data);
+	a->byte_count = 0;
+	a->item_size = 0;
+	a->item_count = 0;
+}
+
 void add_item(Array *a, void *item){
 	if( (a->item_count * a->item_size) > a->byte_count){
 		a->byte_count *= 2;
