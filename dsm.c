@@ -83,7 +83,7 @@ void show_code(Code *code){
 	}
 }
 
-void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
+void interpret(Interp *interp, Code *proc, Scope *scope, unsigned int start){
 
 	Inst *code = proc->code;
 	unsigned int length = proc->length;
@@ -187,7 +187,8 @@ void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start){
 				break;
 			case INST_CALL_I:
 				interp->reg[RET] = interp->reg[IS];
-				interp->reg[IS] = ((Name *)get_item(&nt->names, i.a))->location; 
+				interp->reg[IS] = get_by_index(scope, i.a)->location;
+				//interp->reg[IS] = ((Name *)get_item(&nt->names, i.a))->location; 
 				break;
 			case INST_CALL_R:
 				interp->reg[RET] = interp->reg[IS];

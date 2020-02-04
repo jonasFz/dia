@@ -2,7 +2,9 @@
 #define _H_DSM
 
 #include "array.h"
+//TODO: do we need builder?
 #include "builder.h"
+#include "scope.h"
 
 //Really need to fix this mess
 
@@ -97,7 +99,7 @@ typedef struct Code{
 void add_label(Code *code, char *label, int value);
 int lookup_label(Code *code, char *label);
 
-void interpret(Interp *interp, Code *proc, Name_Table *nt, unsigned int start);
+void interpret(Interp *interp, Code *proc, Scope *scope, unsigned int start);
 int load_dsm(const char *file_path, Code *code);
 Inst make_inst(unsigned int inst, int a, int b, int c);
 void add_inst(Code *code, Inst inst);

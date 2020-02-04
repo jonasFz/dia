@@ -27,6 +27,30 @@ Scope scope_down(Scope *scope){
 	return ret;
 }
 
+void set_location(Scope *scope, const char *name, unsigned int location){
+	Identifier *id = NULL;
+	if((id = lookup_identifier(scope, name)) == NULL){
+		//TODO I'm not sure what we actually want to do in this case, cause we shouldn't have to include everytime
+		return;
+	}
+	id->location = location;
+}
+
+int index_of_name(Scope *scope, const char *name){
+	Array_Iter at = make_array_iter(&scope->identifiers);
+	Identifier *current = NULL;
+
+	int index = 0;
+	while((current = (Identifier *)next_item(&at)) != NULL){
+		if(strcmp(current->name, name) == 0){
+			return index;
+		}
+		index++;
+	}
+	return index;
+
+}
+
 Identifier *check_non_recursive(Scope *scope, const char *name){
 	Array_Iter at = make_array_iter(&scope->identifiers);
 	Identifier *ident;
@@ -51,7 +75,12 @@ Identifier *lookup_identifier(Scope *scope, const char *value){
 	return ident;
 }
 
-int bind_identifier(Scope *scope, const char* name, unsigned int length, char is_function){
+//Checks JUST THIS SCOPE, using for function lookup at the global level
+Identifier *get_by_index(Scope *scope, unsigned int index){
+	return (Identifier *)get_item(&scope->identifiers, index);
+}
+
+int bind_identifier(Scope *scope, const char* name, unsigned int length, unsigned int location, char is_function, char is_external){
 	if(check_non_recursive(scope, name) != NULL){
 		return 0;
 	}
@@ -63,7 +92,9 @@ int bind_identifier(Scope *scope, const char* name, unsigned int length, char is
 	ident.name[len] = '\0';
 
 	ident.length = length;
+	ident.location = location;
 	ident.is_function = is_function;
+	ident.is_external = is_external;
 
 	// Pretty sure it copies?
 	add_item(&scope->identifiers, (void *)&ident);

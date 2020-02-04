@@ -7,7 +7,7 @@
 #include "dsm.h"
 #include "array.h"
 #include "builder.h"
-
+#include "scope.h"
 
 char *load_file(char *file_path){
 	FILE *f = fopen(file_path, "r");
@@ -34,7 +34,7 @@ char *load_file(char *file_path){
 	return data;
 }
 
-void type_check_functions(Node* global, Type_Table *tt, Name_Table *nt){
+void type_check_functions(Node* global, Type_Table *tt, Scope *scope){
 	if(global->type != TYPE_GLOBAL){
 		printf("A node of type global must be passed to 'type_check_functions'\n");
 		exit(1);
@@ -46,26 +46,26 @@ void type_check_functions(Node* global, Type_Table *tt, Name_Table *nt){
 	}
 }
 
-Name_Table build_name_table(Node *global){
-	Name_Table nt;
+Scope build_scope(Node *global){
+	Scope scope;
 
 	if(global->type != TYPE_GLOBAL){
 		printf("Can only build code from a node of type GLOBAL\n");
-		return nt;
+		return scope;
 	}
-	nt = make_name_table();
+	scope = make_scope();
 	Array_Iter nodes = make_array_iter(&global->nodes);
 	Node *n = NULL;
 	while((n = (Node *)next_item(&nodes)) != NULL){
 		if(n->type == TYPE_FUNCTION){
 			int is_external = n->flags & FLAG_EXTERNAL;
-			register_name(&nt, CHILD(n, 0)->value, is_external);
+			bind_identifier(&scope, CHILD(n, 0)->value, 0, 0, 1, is_external);
 		}else{
 			printf("Only handle functions at the top level currently\n");
 		}
 	}
 	
-	return nt;
+	return scope;
 }
 
 int main(int argc, char **argv){
@@ -85,21 +85,21 @@ int main(int argc, char **argv){
 
 
 	Code code = make_code();
-	Name_Table nt = build_name_table(global);
-	
+	//Name_Table nt = build_name_table(global);
+	Scope scope = build_scope(global);
 
-	type_check_functions(global, tt, &nt);
+	type_check_functions(global, tt, &scope);
 
-	build_code(global, &code, &nt);
+	build_code(global, &code, &scope);
 	//show_code(&code);
-	printf("-----------------------");
-	Name* name = lookup_name(&nt, "main");
-	if(name == NULL){
+	printf("-----------------------\n");
+	Identifier *id = lookup_identifier(&scope, "main");
+	if(id == NULL){
 		printf("Your program needs a main function\n");
 	}else{
-		printf("Main function found at instruction index:  %d\n", name->location);
+		printf("Main function found at instruction index:  %d\n", id->location);
 		Interp interp;
-		interpret(&interp, &code, &nt, name->location);
+		interpret(&interp, &code, &scope, id->location);
 	}
 
 
