@@ -22,6 +22,21 @@ typedef struct Function{
 	int block_end;
 } Function;
 
+void push_parameter(Function *f, char* value){
+	Parameter p;
+	p.name = value;
+	p.offset = f->offset++;
+	add_item(&f->params, (void *)&p);
+}
+
+void pop_parameters(Function *f, unsigned int count){
+	f->params.item_count -= count;
+	if(f->params.item_count < 0){
+		printf("WARNING popped %d parameters off of function %s, byt we only had %d\n", count, f->name, f->params.item_count + count);
+		f->params.item_count = 0;
+	}
+}
+
 int offset_for_param(Function *function, char *name){
 	Array_Iter at = make_array_iter(&function->params);
 	Parameter *p = (Parameter *)next_item(&at);
@@ -235,16 +250,15 @@ void emit_block(Code *code, Scope *scope, Function *f,  Node *block){
 	update_line(code, block->source_location.line);
 	
 	f->block_start = code->length;
-	
+	unsigned int params_pushed = 0;
+
 	// Refactor: Should I use an iter?
 	for (int i = 0; i<block->nodes.item_count; i++){
 		Node *line = CHILD(block, i);
 		if (line->type == TYPE_DECL){
-			Parameter p;
-			p.name = CHILD(line, 0)->value;
-			p.offset = f->offset++;
-			add_item(&f->params, (void *)&p);
-
+			push_parameter(f, CHILD(line, 0)->value);
+			params_pushed++;
+			
 			emit_instruction(code, INST_PUSH_I, 0, -1, -1);
 		}else if(line->type == TYPE_OPERATOR){
 			if (strcmp(line->value, "=") == 0){
@@ -274,6 +288,7 @@ void emit_block(Code *code, Scope *scope, Function *f,  Node *block){
 			printf("Emitting block, '%s' of type %d is unkown\n", line->value, line->type);
 		}
 	}
+	pop_parameters(f, params_pushed);
 	f->block_end = code->length;
 }
 
@@ -311,12 +326,8 @@ void emit_function(Code *code, Scope *scope, Node *func){
 	Node *params = CHILD(func, 1);
 	for (int i = 0; i < params->nodes.item_count; i++){
 		Node *decl = CHILD(params, i);
-		
-		Parameter p;
-		p.name = CHILD(decl, 0)->value;
-		p.offset = f.offset++;
-
-		add_item(&f.params, (void *)&p);
+	
+		push_parameter(&f, CHILD(decl, 0)->value);
 	}
 
 	Node* block = CHILD(func, 3);
