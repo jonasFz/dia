@@ -1,6 +1,8 @@
 #ifndef _H_DSM
 #define _H_DSM
 
+#include <stdint.h>
+
 #include "array.h"
 //TODO: do we need builder?
 #include "builder.h"
@@ -62,6 +64,8 @@
 #define CMP_L	1
 #define CMP_G	3
 
+
+
 typedef struct Inst{
 	unsigned int inst;
 	int a;
@@ -77,15 +81,18 @@ typedef struct Label{
 } Label;
 
 typedef struct Interp{
-	unsigned int reg[12];
+	int32_t reg[12];
 
-	unsigned int stack[512];
+	void *stack;
 	unsigned int stack_length;
 
 	unsigned int cmp;
 
 	int line;
 } Interp;
+
+void push_4(Interp *p, int32_t val);
+int32_t pop_4(Interp *p);
 
 typedef struct Code{
 	Inst *code;

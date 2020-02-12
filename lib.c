@@ -8,25 +8,25 @@
 #define EXT_COUNT 3
 
 void ext_print(Interp *interp){
-	int value = interp->stack[--interp->reg[SP]];
+	int value = pop_4(interp);
 	printf("%d\n", value);
-	interp->stack[interp->reg[SP]++] = 0;
+	push_4(interp, 0);
 }
 
 void ext_get(Interp *interp){
 	int c = fgetc(stdin);
-	interp->stack[interp->reg[SP]++] = c;
+	push_4(interp, c);
 }
 
 void ext_assert(Interp *interp){
-	int is_true = interp->stack[--interp->reg[SP]];
+	int is_true = pop_4(interp);
 	if(!is_true){
 		//TODO We really need location information
 		printf("Assertion failed!\n");
 		printf("Line number %d\n", interp->line + 1);
 		exit(0);
 	}
-	interp->stack[interp->reg[SP]++] = 0;
+	push_4(interp, 0);
 }
 
 //All of these function currently MUST leave something on the stack

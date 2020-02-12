@@ -9,6 +9,7 @@
 typedef struct Parameter{
 	char *name;
 	int offset;
+	int bytes;
 } Parameter;
 
 typedef struct Function{
@@ -22,19 +23,21 @@ typedef struct Function{
 	int block_end;
 } Function;
 
-void push_parameter(Function *f, char* value){
+void push_parameter(Function *f, char* value, int bytes){
 	Parameter p;
 	p.name = value;
-	p.offset = f->offset++;
+	p.offset = f->offset;
+	p.bytes = bytes;
+	f->offset += bytes;
 	add_item(&f->params, (void *)&p);
 }
 
 void pop_parameters(Function *f, unsigned int count){
-	f->params.item_count -= count;
-	if(f->params.item_count < 0){
-		printf("WARNING popped %d parameters off of function %s, byt we only had %d\n", count, f->name, f->params.item_count + count);
-		f->params.item_count = 0;
+	int param_count = f->params.item_count;
+	for(int i = 0; i < count; i++){
+		f->offset -= ((Parameter *)get_item(&f->params, param_count - i))->bytes;
 	}
+	f->params.item_count -= count;
 }
 
 int offset_for_param(Function *function, char *name){
@@ -178,7 +181,7 @@ void emit_return(Code *code, Function *f){
 	
 	//Clean up the stack before returing
 	int param_count = f->params.item_count;	
-	emit_instruction(code, INST_SUB_I, SP, SP, param_count);
+	emit_instruction(code, INST_SUB_I, SP, SP, param_count*4);
 
 	//Restore the old frame pointer for the calling function
 	if( strcmp(f->name, "main") != 0){
@@ -256,7 +259,7 @@ void emit_block(Code *code, Scope *scope, Function *f,  Node *block){
 	for (int i = 0; i<block->nodes.item_count; i++){
 		Node *line = CHILD(block, i);
 		if (line->type == TYPE_DECL){
-			push_parameter(f, CHILD(line, 0)->value);
+			push_parameter(f, CHILD(line, 0)->value, 4);
 			params_pushed++;
 			
 			emit_instruction(code, INST_PUSH_I, 0, -1, -1);
@@ -327,7 +330,7 @@ void emit_function(Code *code, Scope *scope, Node *func){
 	for (int i = 0; i < params->nodes.item_count; i++){
 		Node *decl = CHILD(params, i);
 	
-		push_parameter(&f, CHILD(decl, 0)->value);
+		push_parameter(&f, CHILD(decl, 0)->value, 4);
 	}
 
 	Node* block = CHILD(func, 3);

@@ -5,6 +5,7 @@
 #include "dsm.h"
 #include "lib.h"
 
+
 const char *OP[OP_COUNT] ={
 	"HALT",
 	"GOTO_I",
@@ -41,6 +42,16 @@ const char *OP[OP_COUNT] ={
 	"NOT",
 	"SWP_STACK"
 };
+
+void push_4(Interp *p, int32_t val){
+	*((int32_t *)(p->stack+p->reg[SP])) = val;
+	p->reg[SP] += 4;
+}
+
+int32_t pop_4(Interp *p){
+	p->reg[SP] -= 4;
+	return *((int32_t *)(p->stack+p->reg[SP]));
+}
 
 Inst make_inst(unsigned int inst, int a, int b, int c){
 	Inst i;
@@ -82,7 +93,15 @@ void show_code(Code *code){
 		printf("%3d %s %d %d %d\n",i, OP[inst.inst], inst.a, inst.b, inst.c);
 	}
 }
-
+void allocate_stack(Interp *interp, unsigned int stack_length){
+	interp->stack = malloc(stack_length);
+	if(interp->stack == NULL){
+		printf("Failed to allocate stack space for the interpreter\n");
+		exit(1);
+	}
+	memset(interp->stack, 0, stack_length);
+	interp->stack_length = stack_length;
+}
 void interpret(Interp *interp, Code *proc, Scope *scope, unsigned int start){
 
 	Inst *code = proc->code;
@@ -93,22 +112,19 @@ void interpret(Interp *interp, Code *proc, Scope *scope, unsigned int start){
 	interp->reg[RET] = 0;
 	interp->reg[IS] = start;
 
-	interp->stack_length = 512;
 
-	for(int i = 0; i < interp->stack_length; i++){
-		interp->stack[i] = 0;
-	}
-
+	allocate_stack(interp, 2048);
 
 	int running = 1;
 	while(running){
 		if(interp->reg[IS] >= length){
-			printf("Cannot do instruction at index %d, the code is only %d long\n", interp->reg[IS], length);
+			printf("Cannot do instruction at index %d, the code is only %d long\n", interp->reg[IS], interp->stack_length);
 			return;
 		}
 
 		Inst i = code[interp->reg[IS]++];
 		interp->line = i.source_line_number;
+		//printf("Line number = %d\n", i.source_line_number);
 		//printf("SP=%d, FP=%d, RET=%d, IS=%d\n", interp->reg[SP], interp->reg[FP], interp->reg[RET], interp->reg[IS]);
 		//printf("%2d: %10s %2d %2d %2d :: ",interp->reg[IS]-1, OP[i.inst], i.a, i.b, i.c);
 
@@ -132,16 +148,16 @@ void interpret(Interp *interp, Code *proc, Scope *scope, unsigned int start){
 				interp->reg[i.a] = interp->reg[i.b];
 				break;
 			case INST_POP_R:
-				interp->reg[i.a] = interp->stack[--interp->reg[SP]];
+				interp->reg[i.a] = pop_4(interp);
 				break;
 			case INST_POP:
-				interp->reg[SP]--;
+				interp->reg[SP]-=4;
 				break;
 			case INST_PUSH_I:
-				interp->stack[interp->reg[SP]++] = i.a;
+				push_4(interp, i.a);
 				break;
 			case INST_PUSH_R:
-				interp->stack[interp->reg[SP]++] = interp->reg[i.a];
+				push_4(interp, interp->reg[i.a]);
 				break;
 			case INST_ADD_I:
 				interp->reg[i.a] = interp->reg[i.b] + i.c;
@@ -168,19 +184,19 @@ void interpret(Interp *interp, Code *proc, Scope *scope, unsigned int start){
 				interp->reg[i.a] = interp->reg[i.b] / interp->reg[i.c];
 				break;
 			case INST_LOAD_R://Just does stack for the moment
-				interp->reg[i.a] = interp->stack[interp->reg[i.b]];
+				memcpy(&interp->reg[i.a], interp->stack+interp->reg[i.b], 4);
 				break;
 			case INST_LOAD_I:
-				interp->reg[i.a] = interp->stack[i.b];
+				memcpy(&interp->reg[i.a], interp->stack+i.b, 4);
 				break;
 			case INST_LOAD_RI:
-				interp->reg[i.a] = interp->stack[interp->reg[i.b] + i.c];
+				memcpy(&interp->reg[i.a], interp->stack+interp->reg[i.b] + i.c, 4);
 				break;
 			case INST_SAVE_R:
-				interp->stack[interp->reg[i.a]] = interp->reg[i.b];
+				memcpy(interp->stack+interp->reg[i.a], &interp->reg[i.b], 4);
 				break;
 			case INST_SAVE_I:
-				interp->stack[interp->reg[i.a]] = i.b;
+				memcpy(interp->stack+interp->reg[i.a], &i.b, 4);
 				break;
 			case INST_SAVE_RI:
 				printf("SAVE_RI NOT IMPLEMENTED");
@@ -188,7 +204,6 @@ void interpret(Interp *interp, Code *proc, Scope *scope, unsigned int start){
 			case INST_CALL_I:
 				interp->reg[RET] = interp->reg[IS];
 				interp->reg[IS] = get_by_index(scope, i.a)->location;
-				//interp->reg[IS] = ((Name *)get_item(&nt->names, i.a))->location; 
 				break;
 			case INST_CALL_R:
 				interp->reg[RET] = interp->reg[IS];
@@ -196,7 +211,6 @@ void interpret(Interp *interp, Code *proc, Scope *scope, unsigned int start){
 				break;
 			case INST_EXT_CALL_I:
 				get_external_by_index(i.a)(interp);
-				//externals[((Name *)get_item(&nt->names, i.a))->location](interp);
 				break;
 			case INST_RET:
 				interp->reg[IS] = interp->reg[RET];
@@ -224,27 +238,19 @@ void interpret(Interp *interp, Code *proc, Scope *scope, unsigned int start){
 				interp->reg[i.a] = !interp->reg[i.a];
 				break;
 			case INST_SWAP_STACK:
-				interp->stack[interp->reg[SP]] = interp->stack[interp->reg[SP]-2];
-				interp->stack[interp->reg[SP]-2] = interp->stack[interp->reg[SP]-1];
-				interp->stack[interp->reg[SP]-1] = interp->stack[interp->reg[SP]];
+				memcpy(interp->stack+interp->reg[SP], 	interp->stack+interp->reg[SP]-8, 4);
+				memcpy(interp->stack+interp->reg[SP]-8, interp->stack+interp->reg[SP]-4, 4);
+				memcpy(interp->stack+interp->reg[SP]-4, interp->stack+interp->reg[SP],   4);
 				break;
 			default:
 				printf("%d is not an opcode that we understand\n", interp->reg[IS]);
 				running = 0;
 		}
 		
-		if(interp->reg[SP] <0 || interp->reg[SP] >= interp->stack_length){
+		if(interp->reg[SP] <0 || interp->reg[SP] >= length){
 			printf("Bad stack value, %d is not in the range %d to %d\n", interp->reg[SP], 0, interp->stack_length);
 			exit(1);
 		}
-/*		printf("(R0=%2d, R1=%2d, R2=%2d, RET=%2d) ", interp->reg[R0], interp->reg[R1], interp->reg[R2], interp->reg[RET]);
-		for(int i = 0; i < interp->reg[SP]; i++){
-			printf("%d-", interp->stack[i]);
-		}
-		printf("\n");
-
-		fgetc(stdin);
-*/
 	}
 }
 
