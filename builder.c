@@ -23,6 +23,12 @@ typedef struct Function{
 	int block_end;
 } Function;
 
+typedef struct{
+	Code *code;
+	Scope *scope;
+	Function *func;
+}Build_Context;
+
 void push_parameter(Function *f, char* value, int bytes){
 	Parameter p;
 	p.name = value;
@@ -64,39 +70,39 @@ void print_function(Function function){
 }
 
 //This could probably be a macro but I will wait until it is finalized, eventually I wont just be printing this stuff out and will actually be building code
-void emit_instruction(Code *code, unsigned int op, int a, int b, int c){
+void emit_instruction(Build_Context *bc, unsigned int op, int a, int b, int c){
 	Inst i = make_inst(op, a, b, c);
-	i.source_line_number = code->current_source_line;
-	add_inst(code, i);
+	i.source_line_number = bc->code->current_source_line;
+	add_inst(bc->code, i);
 }
 
-void emit_call(Code *code, Scope *scope, Function *f, Node *operator);
-void emit_operator(Code *code, Scope *scope, Function *f, Node *operator);
-void emit_operand(Code *code, Scope *scope, Function *f, Node *operand){	
-	update_line(code, operand->source_location.line);
+void emit_call(Build_Context *bc, Node *operator);
+void emit_operator(Build_Context *bc, Node *operator);
+void emit_operand(Build_Context *bc, Node *operand){	
+	update_line(bc->code, operand->source_location.line);
 	if(operand->type == TYPE_IDENT){
-		int offset = offset_for_param(f, operand->value);
+		int offset = offset_for_param(bc->func, operand->value);
 		if(offset == -1){
 			printf("In emit_operand, paramerter '%s' not found\n", operand->value);
 			exit(0);
 		}
-		emit_instruction(code, INST_LOAD_RI, R0, FP, offset);
-		emit_instruction(code, INST_PUSH_R, R0, -1, -1);
+		emit_instruction(bc, INST_LOAD_RI, R0, FP, offset);
+		emit_instruction(bc, INST_PUSH_R, R0, -1, -1);
 	}else if (operand->type == TYPE_OPERATOR){
-		emit_operator(code, scope, f, operand);
+		emit_operator(bc, operand);
 	}else if( operand->type == TYPE_CALL){
-		emit_call(code, scope, f, operand);
+		emit_call(bc, operand);
 	}else if(operand->type == TYPE_INTEGER){
 		int val = atoi(operand->value);
-		emit_instruction(code, INST_PUSH_I, val, -1, -1);
+		emit_instruction(bc, INST_PUSH_I, val, -1, -1);
 	}else{
 		printf("%d is not a type of operand we handle\n", operand->type);
 	}
 }
 
-void emit_call(Code *code, Scope *scope, Function *f, Node *operator){
-	update_line(code, operator->source_location.line);
-	Identifier* r = lookup_identifier(scope, CHILD(operator, 0)->value);
+void emit_call(Build_Context *bc, Node *operator){
+	update_line(bc->code, operator->source_location.line);
+	Identifier* r = lookup_identifier(bc->scope, CHILD(operator, 0)->value);
 	if(r == NULL){
 		printf("Attempt to call function '%s' failed because it could not be located. Does it exist?\n", CHILD(operator, 0)->value);
 		exit(1);
@@ -104,195 +110,195 @@ void emit_call(Code *code, Scope *scope, Function *f, Node *operator){
 	int is_external_call = r->is_external;
 	
 	if(!is_external_call){
-		emit_instruction(code, INST_PUSH_R, RET, -1, -1); 
-		emit_instruction(code, INST_PUSH_R, FP, -1, -1);
-		emit_instruction(code, INST_MOV_R, R2, SP, -1);	// Temporarily save SP
+		emit_instruction(bc, INST_PUSH_R, RET, -1, -1); 
+		emit_instruction(bc, INST_PUSH_R, FP, -1, -1);
+		emit_instruction(bc, INST_MOV_R, R2, SP, -1);	// Temporarily save SP
 	}
 	
 	Node *params = CHILD(operator, 1);
 	for (int i = 0;i < params->nodes.item_count; i++){
-		emit_operand(code, scope, f, CHILD(params, i));	// Put call parameters on stack
+		emit_operand(bc, CHILD(params, i));	// Put call parameters on stack
 	}
 
 	if(!is_external_call){
-		int call_location = index_of_name(scope, CHILD(operator, 0)->value);
+		int call_location = index_of_name(bc->scope, CHILD(operator, 0)->value);
 		if( call_location == -1){
 			printf("Trying to call function '%s' but it doesn't seem to exist yet\n", CHILD(operator, 0)->value);
 		}	
-		emit_instruction(code, INST_MOV_R, FP, R2, -1);
-		emit_instruction(code, INST_CALL_I, call_location, -1, -1);
-		emit_instruction(code, INST_SWAP_STACK, -1, -1, -1);
-		emit_instruction(code, INST_POP_R, RET, -1, -1);
+		emit_instruction(bc, INST_MOV_R, FP, R2, -1);
+		emit_instruction(bc, INST_CALL_I, call_location, -1, -1);
+		emit_instruction(bc, INST_SWAP_STACK, -1, -1, -1);
+		emit_instruction(bc, INST_POP_R, RET, -1, -1);
 	}else{
 		int external_index = lookup_external_index(CHILD(operator, 0)->value);
 		if(external_index == -1){
 			printf("External function '%s' is not defined\n", CHILD(operator, 0)->value);
 			exit(0);
 		}
-		emit_instruction(code, INST_EXT_CALL_I, external_index, -1, -1);
+		emit_instruction(bc, INST_EXT_CALL_I, external_index, -1, -1);
 	}
 }
 
 //This function is very stupid, every operand is pushed onto the stack but will
 //just be popped right off again, could optimize later or just generate smarter code
 //The goal currently is just to get any code running then I'll see about being smart
-void emit_operator(Code *code, Scope *scope, Function *f, Node *operator){
-	update_line(code, operator->source_location.line);
+void emit_operator(Build_Context *bc, Node *operator){
+	update_line(bc->code, operator->source_location.line);
 
 	Node *l = CHILD(operator, 0);
 	Node *r = CHILD(operator, 1);
-	emit_operand(code, scope,  f, l);
-	emit_operand(code, scope,  f, r);
-	emit_instruction(code, INST_POP_R, R1, -1, -1);
-	emit_instruction(code, INST_POP_R, R0, -1, -1);
+	emit_operand(bc, l);
+	emit_operand(bc, r);
+	emit_instruction(bc, INST_POP_R, R1, -1, -1);
+	emit_instruction(bc, INST_POP_R, R0, -1, -1);
 	
 	if(strcmp(operator->value, "==") == 0){
 		// This is ugly and can likely be nicer
-		emit_instruction(code, INST_SUB_R, R0, R0, R1);
-		emit_instruction(code, INST_CMP_I, R0, 0, -1);
-		emit_instruction(code, INST_JUMP_NEQL, code->length+3, -1, -1);
+		emit_instruction(bc, INST_SUB_R, R0, R0, R1);
+		emit_instruction(bc, INST_CMP_I, R0, 0, -1);
+		emit_instruction(bc, INST_JUMP_NEQL, bc->code->length+3, -1, -1);
 		
-		emit_instruction(code, INST_PUSH_I, 1, -1, -1);
-		emit_instruction(code, INST_GOTO_I, code->length+2, -1, -1); 
-		emit_instruction(code, INST_PUSH_I, 0, -1, -1);
+		emit_instruction(bc, INST_PUSH_I, 1, -1, -1);
+		emit_instruction(bc, INST_GOTO_I, bc->code->length+2, -1, -1); 
+		emit_instruction(bc, INST_PUSH_I, 0, -1, -1);
 
 	}else if(operator->value[0] == '+'){
-		emit_instruction(code, INST_ADD_R, R0, R0, R1);
-		emit_instruction(code, INST_PUSH_R, R0, -1, -1);
+		emit_instruction(bc, INST_ADD_R, R0, R0, R1);
+		emit_instruction(bc, INST_PUSH_R, R0, -1, -1);
 	}else if(operator->value[0] == '-'){
-		emit_instruction(code, INST_SUB_R, R0, R0, R1);
-		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
+		emit_instruction(bc, INST_SUB_R, R0, R0, R1);
+		emit_instruction(bc, INST_PUSH_R, 0, -1, -1);
 	}else if(operator->value[0] == '*'){
-		emit_instruction(code, INST_MUL_R, R0, R0, R1);
-		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
+		emit_instruction(bc, INST_MUL_R, R0, R0, R1);
+		emit_instruction(bc, INST_PUSH_R, 0, -1, -1);
 	}else if (operator->value[0] == '/'){
-		emit_instruction(code, INST_DIV_R, R0, R0, R1);
-		emit_instruction(code, INST_PUSH_R, 0, -1, -1);
+		emit_instruction(bc, INST_DIV_R, R0, R0, R1);
+		emit_instruction(bc, INST_PUSH_R, 0, -1, -1);
 	}else{
 		printf("operator '%s' hasn't yet been implemented\n", operator->value);
 	}
 }
 
-void emit_return(Code *code, Function *f){
+void emit_return(Build_Context *bc){
 	// The block will leave a value on the stack, here we pop it off
 	// so we can put it at the bottom of the stack later as the return value
 	// TYPE will need to figure out how to return big things.
-	emit_instruction(code, INST_POP_R, 0, -1, -1);
+	emit_instruction(bc, INST_POP_R, 0, -1, -1);
 	
 	//Clean up the stack before returing
-	int param_count = f->params.item_count;	
-	emit_instruction(code, INST_SUB_I, SP, SP, param_count*4);
+	int param_count = bc->func->params.item_count;	
+	emit_instruction(bc, INST_SUB_I, SP, SP, param_count*4);
 
 	//Restore the old frame pointer for the calling function
-	if( strcmp(f->name, "main") != 0){
-		emit_instruction(code, INST_POP_R, FP, -1, -1);
-		emit_instruction(code, INST_PUSH_R, R0, -1, -1);
+	if( strcmp(bc->func->name, "main") != 0){
+		emit_instruction(bc, INST_POP_R, FP, -1, -1);
+		emit_instruction(bc, INST_PUSH_R, R0, -1, -1);
 	}
-	if(strcmp(f->name, "main") == 0){
+	if(strcmp(bc->func->name, "main") == 0){
 		printf("Emiting halt instruction\n");
-		emit_instruction(code, INST_HALT, -1, -1, -1);
+		emit_instruction(bc, INST_HALT, -1, -1, -1);
 	}else{
-		emit_instruction(code, INST_RET, -1, -1, -1);
+		emit_instruction(bc, INST_RET, -1, -1, -1);
 	}
 }
 
-void emit_expression(Code *code, Scope *scope, Function *f, Node *child){
-	update_line(code, child->source_location.line);
+void emit_expression(Build_Context *bc, Node *child){
+	update_line(bc->code, child->source_location.line);
 	if(child->type == TYPE_OPERATOR){
-		emit_operator(code, scope, f, child);
+		emit_operator(bc, child);
 	}else{
-		emit_operand(code, scope, f, child);
+		emit_operand(bc, child);
 	}
 }
 
-void emit_block(Code *code, Scope *scope, Function *f, Node *block);
+void emit_block(Build_Context *bc, Node *block);
 
-void emit_if_block(Code *code, Scope *scope, Function *f, Node *block){
-	update_line(code, block->source_location.line);
+void emit_if_block(Build_Context *bc, Node *block){
+	update_line(bc->code, block->source_location.line);
 	
 
 	Node *expression = CHILD(block, 0);
-	emit_expression(code, scope, f, expression);
-	emit_instruction(code, INST_POP_R, R0, -1, -1);
-	emit_instruction(code, INST_CMP_I, R0, 1, -1);
+	emit_expression(bc, expression);
+	emit_instruction(bc, INST_POP_R, R0, -1, -1);
+	emit_instruction(bc, INST_CMP_I, R0, 1, -1);
 	
-	unsigned int start = code->length;
-	emit_instruction(code, INST_JUMP_NEQL, -1, -1, -1);	// Emit place holder location
+	unsigned int start = bc->code->length;
+	emit_instruction(bc, INST_JUMP_NEQL, -1, -1, -1);	// Emit place holder location
 	Node *b = CHILD(block, 1);
-	emit_block(code, scope, f, b);
-	emit_instruction(code, INST_GOTO_I, -1, -1, -1); // Place holder for end of conditional
-	code->code[start].a = code->length; //Patch location
+	emit_block(bc, b);
+	emit_instruction(bc, INST_GOTO_I, -1, -1, -1); // Place holder for end of conditional
+	bc->code->code[start].a = bc->code->length; //Patch location
 }
 
-void emit_conditional(Code *code, Scope *scope, Function *f, Node *conditional){
-	unsigned int start = code->length;
+void emit_conditional(Build_Context *bc, Node *conditional){
+	unsigned int start = bc->code->length;
 	unsigned int end = 0;
-	update_line(code, conditional->source_location.line);
+	update_line(bc->code, conditional->source_location.line);
 
 	Array_Iter at = make_array_iter(&conditional->nodes);
 	Node *child = NULL;
 	while((child = (Node *)next_item(&at)) != NULL){
 		if(child->type == TYPE_IF || child->type == TYPE_ELSE_IF){
-			emit_if_block(code, scope, f, child);
+			emit_if_block(bc, child);
 		}else if (child->type == TYPE_ELSE){
-			emit_block(code, scope, f, CHILD(child, 0));
-			end = code->length;
+			emit_block(bc, CHILD(child, 0));
+			end = bc->code->length;
 			break;
 		}
-		end = code->length;
+		end = bc->code->length;
 	}
 	// Bit hacky but we are just going to find those bad gotos and making them jump to end
 	for(int i = start; i < end; i++){
-		if(code->code[i].inst == INST_GOTO_I && code->code[i].a == -1){
-			code->code[i].a = end;
+		if(bc->code->code[i].inst == INST_GOTO_I && bc->code->code[i].a == -1){
+			bc->code->code[i].a = end;
 		}
 	}
 }
 
-void emit_block(Code *code, Scope *scope, Function *f,  Node *block){
-	update_line(code, block->source_location.line);
+void emit_block(Build_Context *bc,  Node *block){
+	update_line(bc->code, block->source_location.line);
 	
-	f->block_start = code->length;
+	bc->func->block_start = bc->code->length;
 	unsigned int params_pushed = 0;
 
 	// Refactor: Should I use an iter?
 	for (int i = 0; i<block->nodes.item_count; i++){
 		Node *line = CHILD(block, i);
 		if (line->type == TYPE_DECL){
-			push_parameter(f, CHILD(line, 0)->value, 4);
+			push_parameter(bc->func, CHILD(line, 0)->value, 4);
 			params_pushed++;
 			
-			emit_instruction(code, INST_PUSH_I, 0, -1, -1);
+			emit_instruction(bc, INST_PUSH_I, 0, -1, -1);
 		}else if(line->type == TYPE_OPERATOR){
 			if (strcmp(line->value, "=") == 0){
-				emit_operand(code, scope, f, CHILD(line, 1));
+				emit_operand(bc, CHILD(line, 1));
 				char *val = CHILD(line, 0)->value;
-				int offset = offset_for_param(f, val);
+				int offset = offset_for_param(bc->func, val);
 				if(offset == -1){
 					printf("Cannot output assignment because %s has not been defined\n", val);
 					exit(0);
 				}	
-				emit_instruction(code, INST_ADD_I, 0, 9, offset); 
-				emit_instruction(code, INST_POP_R, 1, -1, -1);
-				emit_instruction(code, INST_SAVE_R, 0, 1, -1);	
+				emit_instruction(bc, INST_ADD_I, 0, 9, offset); 
+				emit_instruction(bc, INST_POP_R, 1, -1, -1);
+				emit_instruction(bc, INST_SAVE_R, 0, 1, -1);	
 			}else{
 				//@TODO then what!?
 			}
 		}else if (line->type == TYPE_CALL){
-			emit_operand(code, scope, f, line);
-			emit_instruction(code, INST_POP, -1, -1, -1); // Unused return value
+			emit_operand(bc, line);
+			emit_instruction(bc, INST_POP, -1, -1, -1); // Unused return value
 		}else if (line->type == TYPE_CONDITIONAL){
-			emit_conditional(code, scope, f, line);
+			emit_conditional(bc, line);
 		}else if (line->type == TYPE_RETURN){
 			Node *child = CHILD(line, 0);
-			emit_expression(code, scope, f, child);
-			emit_return(code, f);
+			emit_expression(bc, child);
+			emit_return(bc);
 		}else{
 			printf("Emitting block, '%s' of type %d is unkown\n", line->value, line->type);
 		}
 	}
-	pop_parameters(f, params_pushed);
-	f->block_end = code->length;
+	pop_parameters(bc->func, params_pushed);
+	bc->func->block_end = bc->code->length;
 }
 
 void show_function(Function *f){
@@ -316,9 +322,6 @@ void emit_function(Code *code, Scope *scope, Node *func){
 	f.name = CHILD(func, 0)->value; // Refactor: Should this be a copy instead?
 	f.params = make_array(sizeof(Parameter));
 
-	// If the function is external we don't want to patch the location
-	// as they have fixed 'locations' which are just array indices
-
 	//TODO what if n is null?
 	Identifier *n = lookup_identifier(scope, f.name);
 	if(!n->is_external){
@@ -334,7 +337,11 @@ void emit_function(Code *code, Scope *scope, Node *func){
 	}
 
 	Node* block = CHILD(func, 3);
-	emit_block(code, scope, &f, block);	// Emit the body of the function
+	Build_Context bc;
+	bc.code = code;
+	bc.scope = scope;
+	bc.func = &f;
+	emit_block(&bc, block);	// Emit the body of the function
 }
 
 void build_code(Node *node, Code *code, Scope *scope){

@@ -13,7 +13,6 @@ Type_Table* make_type_table(){
 	return tt;
 }
 
-
 // Speed: This should probably do a hash lookup at some point.
 // As programs get big and we have alot of types this linear
 // search will get too expensive. But I think Knuth said that
@@ -55,6 +54,7 @@ void add_built_in_types(Type_Table *tt){
 	register_type(tt, "f32", 4);
 	register_type(tt, "f64", 8);
 }
+
 void print_type_table(Type_Table *tt){
 	for (int i = 0;i < tt->count; i++){
 		printf("%d %s\n", tt->types[i].length,  tt->types[i].name);
@@ -76,7 +76,6 @@ void type_check_function(Node *function, Type_Table *tt){
 	Node *parameter = NULL;
 	while((parameter = (Node *)next_item(&pat)) != NULL){
 		Node *type = CHILD(parameter, 1);
-		//printf("Checking type '%s'\n", type->value);
 		if(find_type(tt, type->value) == NULL){
 			printf("In function '%s', type '%s' has not been defined\n", function_name, type->value);
 			exit(1);
@@ -85,7 +84,8 @@ void type_check_function(Node *function, Type_Table *tt){
 	
 	// Type check return type
 	Node *return_type = CHILD(function, 2);
-	if(find_type(tt, return_type->value	) == NULL){
+	Type *t = find_type(tt, return_type->value);
+	if(t == NULL){
 		printf("In function '%s', return type '%s' hasn't been defined\n", function_name, return_type->value);
 		exit(1);
 	}
@@ -119,4 +119,3 @@ void type_check_function(Node *function, Type_Table *tt){
 		printf("Function %s does not have a return statement\n", function_name);
 	}
 }
-
