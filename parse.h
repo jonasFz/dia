@@ -43,6 +43,25 @@
 //Please make sure the list actually contains nodes!
 #define CHILD(n, i) ((Node *)(INDEX(n->nodes, i))) 
 
+#define CALL_VALUE(call) CHILD(call, 0)
+#define CALL_PARAMETERS(call) CHILD(call, 1)
+
+#define IF_EXPRESSION(call) CHILD(call, 0)
+#define IF_BLOCK(call) CHILD(call, 1)
+
+#define CONDITIONAL_ELSE(conditional) CHILD(conditional, 0)
+
+#define DECL_VALUE(decl) CHILD(decl, 0)
+
+#define OPERATOR_LEFT(oper) CHILD(oper, 0)
+#define OPERATOR_RIGHT(oper) CHILD(oper, 1)
+
+#define RETURN_EXPRESSION(expression) CHILD(expression, 0)
+
+#define FUNCTION_NAME(function) CHILD(function, 0)
+#define FUNCTION_PARAMETERS(function) CHILD(function, 1)
+#define FUNCTION_BLOCK(function) CHILD(function, 3)
+
 const char *decode_type(unsigned int type);
 
 typedef struct Source_Location{
